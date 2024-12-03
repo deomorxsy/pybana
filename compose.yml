@@ -1,0 +1,19 @@
+services:
+  pyspark:
+    environment:
+      - git_hash
+    build:
+      context: "./"
+      dockerfile: "./Dockerfile"
+      tags:
+        - "localhost:5000/pybana:latest"
+    stop_signal: SIGINT
+  spark:
+    environment:
+      - git_hash
+    build:
+      context: "./"
+      dockerfile: "./Dockerfile"
+      tags:
+        - "localhost:5000/spark:latest"
+    stop_signal: SIGINT

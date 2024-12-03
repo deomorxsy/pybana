@@ -1,0 +1,11 @@
+# System PATH integration
+environs==10.0.0
+
+# Static Analysis
+pylint==3.0.3
+
+# Tests
+pytest==7.4.3
+
+# Spark API
+pyspark==3.5.3
