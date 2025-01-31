@@ -6,17 +6,6 @@ COPY ./requirements.txt .
 ENV USER="myapp"
 WORKDIR "/home/${USER}/app"
 
-#RUN addgroup -g 1000 -S "${USER}" && \
-#    adduser -s /bin/sh -u 1000 -G "${USER}" \
-#        -h "/home/${USER}" -D "${USER}" && && \
-#    su "${USER}"
-
-#RUN apk upgrade && apk update && \
-#    apk add python3 py3-pip
-
-#USER "${USER}"
-
-
 RUN <<EOF
 set -e
 

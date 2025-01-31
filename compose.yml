@@ -1,3 +1,10 @@
+#version: "3.8"
+#
+volumes:
+    prometheus_data: {}
+    grafana_data: {}
+
+
 services:
   pyspark:
     environment:
@@ -8,12 +15,66 @@ services:
       tags:
         - "localhost:5000/pybana:latest"
     stop_signal: SIGINT
-  spark:
+  airflow:
     environment:
       - git_hash
     build:
-      context: "./"
+      context: "./deploy/airflow/"
       dockerfile: "./Dockerfile"
       tags:
-        - "localhost:5000/spark:latest"
+        - "localhost:5000/airflow:latest"
     stop_signal: SIGINT
+# =======================
+# prometheus stack
+# =======================
+node-exporter:  # prometheus node-exporter
+    image: prom/node-exporter:latest
+    container_name: node-exporter
+    restart: unless-stopped
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    ports:
+      - 9100:9100
+
+prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prom-metrics.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+    ports:
+      - 9090:9090
+# =======================
+# grafana
+# =======================
+grafana:
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    image: grafana/grafana:9.3.0
+    container_name: grafana
+    ports:
+      - 3000:3000
+    stop_signal: SIGINT
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GF_SECURITY_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GR_SECURITY_ADMIN_PASSWORD:-grafana}
+    volumes:
+      - ./deploy/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
+      - ./grafana:/var/lib/grafana
+
