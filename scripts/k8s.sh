@@ -9,8 +9,17 @@ HELMCONFIG="./scripts/helm.sh"
 KREWCONFIG="$KJX"/sources/bin/krew-linux_amd64
 ARGOCLI="$ROOTFS_PATH"/usr/bin/argocd
 
+
+MNT_DIR="${{ secrets.MNT_DIR }}"
+K3S_VERSION="v1.32.1+k3s1"
+# nodefs
+#
+KUBELET_DIR="${MNT_DIR}/kubelet":-/var/lib/kubelet
+sudo mkdir -pv "${KUBELET_DIR}"
+
+
 # if
-if ! [ -f "$ROOTFS_PATH"/bin/k3s ]; then
+if ! [ -f "/usr/local/bin/k3s" ]; then
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="$K3S_VERSION" INSTALL_K3S_EXEC="--kubelet-arg "root-dir=$KUBELET_DIR"" sh -
 #sudo chmod 644 /etc/rancher/k3s/k3s.yaml
 fi

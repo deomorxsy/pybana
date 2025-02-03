@@ -20,6 +20,18 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+
+      # setup k3s cluster
+      - uses: debianmaster/actions-k3s@master
+        id: k3s
+        with:
+          version: 'latest'
+      - run: |
+          kubectl get nodes
+          kubectl get pods -A
+          sleep 20
+          kubectl get pods -A
+
       # the job gets runned into $GITHUB_WORKSPACE, that is the environment variable for the repo
       - name: Access current repository
         uses: actions/checkout@v4

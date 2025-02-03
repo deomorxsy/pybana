@@ -54,3 +54,47 @@ spark_k8s_task = SparkKubernetesOperator(
 )
 
 spark_k8s_task
+
+# submit to the operator
+@task.bash
+def run_after_loop() -> str:
+    return "echo https://airflow.apache.org/"
+runt_this = run_after_loop()
+
+
+
+@task.bash
+def submit_pyspark(pyspark_script_path) -> str:
+    # return fstring (formatted string literal)
+    return f""" \
+mkdir -p ./artifacts/ && \
+cat <<EOF
+apiVersion: sparkoperator.k8s.io/v1beta2
+kind: SparkApplication
+metadata:
+  name: pyspark-job
+  namespace: default
+spec:
+  type: Python
+  pythonVersion: "3"
+  pythonFile: "{}"gs://your-bucket/path/to/your-pyspark-script.py
+  mainApplicationFile: "local:///opt/spark/examples/src/main/python/pi.py"
+  driver:
+    cores: 1
+    memory: "1g"
+    serviceAccount: spark
+  executor:
+    cores: 1
+    instances: 1
+    memory: "1g"
+  sparkConf:
+    "spark.executor.instances": "2"
+    "spark.kubernetes.container.image": "gcr.io/spark-operator/spark:v3.1.1"
+  restartPolicy:
+    type: Never
+EOF | tee ./artifacts/spark-pyspark-job.yaml && \
+        kubectl apply -f ./artifacts/spark-pyspark-job.yaml
+"""
+
+
+pss_path="./app/main.py"
