@@ -10,10 +10,10 @@ services:
     environment:
       - git_hash
     build:
-      context: "./"
+      context: "./deploy/spark/"
       dockerfile: "./Dockerfile"
       tags:
-        - "localhost:5000/pybana:latest"
+        - "localhost:5000/pyspark:latest"
     stop_signal: SIGINT
   airflow:
     environment:
