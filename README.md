@@ -1,6 +1,8 @@
 ### Pybana
 > a k8s cluster deployment POC for Spark clusters workflow management with Airflow on k8s.
 
+[![airflow](https://github.com/deomorxsy/pybana/actions/workflows/afw.yml/badge.svg)](https://github.com/deomorxsy/pybana/actions/workflows/afw.yml)
+
 Featuring:
 - [X] [ilum](https://github.com/ilum-cloud/doc): a Spark distribution for big data computing engine for larger-than-memory datasets, natively built for k8s
 - [X] [Airflow](https://airflow.apache.org/docs/): Spark workspace management
