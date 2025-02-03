@@ -1,0 +1,8 @@
+controller:
+  uiService:
+    enable: true
+  uiIngress:
+    enable: true
+    # cluster ingress URL
+    urlFormat: ${{$appNamespace}}/{{$appName}}
+
