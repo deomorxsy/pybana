@@ -53,4 +53,8 @@ jobs:
           docker cp airflow:/extract/results.tar.gz ${{ github.workspace }}/artifacts/
           echo done!!
 
+      - name: deploy Airflow into the k8s cluster
+        run: |
+          . ./scripts/
+
 

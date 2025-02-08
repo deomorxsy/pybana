@@ -8,7 +8,7 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
   config.vm.provision "shell", inline: "echo hello"
 
   config.vm.define "staging1" do |staging1|
-    staging1.vm.box = "deomorxsy/kjx-headless"
+    staging1.vm.box = "deomorxsy/kjx-pybana"
     memory = 1024
     cpus = 1
     staging1.vm.provider :qemu do |v|

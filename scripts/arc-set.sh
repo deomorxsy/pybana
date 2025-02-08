@@ -5,7 +5,14 @@
 INSTALLATION_NAME="arc-runner-set"
 NAMESPACE="arc-runners"
 ORG_CONFIG_URL="${ORG_CONFIG_URL:-https://default-config-url.local}"
-GITHUB_PAT="${GITHUB_PAT:-default_token_here}"
+
+# github personal access token
+if [ "$GITHUB_PAT" = "" ]; then
+    GITHUB_PAT=""
+else
+    GITHUB_PAT="${GITHUB_PAT:-default_token_here}"
+
+fi
 
 
 

@@ -1,0 +1,31 @@
+name: CI Pipeline for Spark and Airflow
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  airflow-spark-job:
+    runs-on: [self-hosted, airflow-runner]
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy Airflow DAG
+        run: |
+          kubectl cp ./dags/main.py airflow-pod:/opt/airflow/dags/
+          kubectl exec airflow-pod -- airflow dags trigger my_pyspark_dag
+
+      - name: Submit Spark Job
+        run: |
+          kubectl apply -f spark-job.yaml
+
+      - name: Monitor Job Status
+        run: |
+          kubectl logs -f $(kubectl get pod -l spark-role=driver -o jsonpath='{.items[0].metadata.name}')
+
+      - name: Deploy DAG to Airflow
+        run: |
+          cp -rf ../pybana /home/debian/services/airflow-docker/dags
+

@@ -1,7 +1,12 @@
 #!/bin/sh
 
-helm upgrade airflow apache-airflow/airflow \
+# add repo
+rudo -E helm repo add apache-airflow https://airflow.apache.org
+sudo -E helm repo update
+
+helm upgrade --install airflow apache-airflow/airflow \
   --namespace airflow \
+  --create-namespace \
   --reuse-values \
   --set dags.persistence.enabled=true \
   --set dags.persistence.existingClaim=dags-volume \

@@ -3,59 +3,176 @@
 ROOTFS_PATH="/"
 
 # k8s const
-KUBECONFIG="$ROOTFS_PATH"/etc/rancher/k3s/k3s.yaml
+#KUBECONFIG="$ROOTFS_PATH"/etc/rancher/k3s/k3s.yaml
 ARGOCONFIG="./deploy/argo.yaml"
 HELMCONFIG="./scripts/helm.sh"
-KREWCONFIG="$KJX"/sources/bin/krew-linux_amd64
+KREWCONFIG="./artifacts/sources/bin/krew-linux_amd64"
+K9S_VERSION="v0.32.7"
 ARGOCLI="$ROOTFS_PATH"/usr/bin/argocd
 
+# remote, HA k8s cluster
+# full control plane distro
+fcpd(){
 
-MNT_DIR="${{ secrets.MNT_DIR }}"
-K3S_VERSION="v1.32.1+k3s1"
-# nodefs
+
+sudo kubeadm init --pod-network-cidr=192.168.0.0/16
+mkdir -p "$HOME/.kube/"
+sudo kubectl config view --raw "$HOME/.kube/config"
+#sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
+sudo chown "$(id -u):$(id -g)" "$HOME/.kube/config"
+
+# set kubeconfig
+KUBECONFIG="$HOME/.kube/config"
+
+
+# setup calico CNI
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.1/manifests/tigera-operator.yaml
+kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.1/manifests/custom-resources.yaml
+
+# confirm that calico pods are running
+watch kubectl get pods -n calico-system > "/tmp/running-pods.txt" 2>&1
+
+# remove taint nodes
+kubectl taint nodes --all node-role.kubernetes.io/control-plane-
+kubectl label nodes --all node.kubernetes.io/exclude-from-external-load-balancers-
+
 #
-KUBELET_DIR="${MNT_DIR}/kubelet":-/var/lib/kubelet
+kubectl get nodes -o wide
+
+}
+
+# local, lightweight single-node k8s cluster
+## minimal control plane distro
+mcpd() {
+MNT_DIR="/mnt/ssd/dataStore/k3s-local/local-path-provisioner/storage"
+K3S_VERSION="v1.32.1+k3s1"
+
+#KUBELET_DIR="${MNT_DIR}/kubelet":-/var/lib/kubelet
+KUBELET_DIR="${MNT_DIR}/kubelet"
 sudo mkdir -pv "${KUBELET_DIR}"
+
+# imagefs: containerd has a root and state directory
+#
+# - https://github.com/containerd/containerd/blob/main/docs/ops.md#base-configuration
+#
+# containerd root -> /var/lib/rancher/k3s/agent/containerd
+#
+# create a soft link (symbolic link)
+CONTAINERD_ROOT_DIR_OLD="/var/lib/rancher/k3s/agent"
+CONTAINERD_ROOT_DIR_NEW="${MNT_DIR}/containerd-root/containerd"
+sudo mkdir -p "${CONTAINERD_ROOT_DIR_OLD}"
+sudo mkdir -p "${CONTAINERD_ROOT_DIR_NEW}"
+sudo ln -s "${CONTAINERD_ROOT_DIR_NEW}" "${CONTAINERD_ROOT_DIR_OLD}"
+
+# containerd state -> /run/k3s/containerd
+#
+CONTAINERD_STATE_DIR_OLD="/run/k3s"
+CONTAINERD_STATE_DIR_NEW="${MNT_DIR}/containerd-state/containerd"
+sudo mkdir -p "${CONTAINERD_STATE_DIR_OLD}"
+sudo mkdir -p "${CONTAINERD_STATE_DIR_NEW}"
+sudo ln -s "${CONTAINERD_STATE_DIR_NEW}" "${CONTAINERD_STATE_DIR_OLD}"
+
+# pvs -> /var/lib/rancher/k3s/storage
+#
+PV_DIR_OLD="/var/lib/rancher/k3s"
+PV_DIR_NEW="${MNT_DIR}/local-path-provisioner/storage"
+sudo mkdir -p "${PV_DIR_OLD}"
+sudo mkdir -p "${PV_DIR_NEW}"
+sudo ln -s "${PV_DIR_NEW}" "${PV_DIR_OLD}"
 
 
 # if
 if ! [ -f "/usr/local/bin/k3s" ]; then
 curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="$K3S_VERSION" INSTALL_K3S_EXEC="--kubelet-arg "root-dir=$KUBELET_DIR"" sh -
-#sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+
+# Solving problems with x509 cert auth in local environments
+# for userspace apps that read the configfile (kubecolor, helm3)
+# ''' sudo k3s kubectl config view --raw | tee "$HOME/.kube/config" ''',
+# which dump config as root and redirect to file as normal user.
+sudo k3s kubectl config view --raw > "$HOME/.kube/config"
+cp /etc/rancher/k3s/k3s.yaml ~/.kube/k3s.yaml
+
 fi
 
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+}
 
-#
-# Solving problems with x509 cert auth in local environments
-# for userspace apps that read the configfile (kubecolor, helm3)
-# sudo k3s kubectl config view --raw | tee "$HOME/.kube/config"
+
 
 # setup helm3
-if ! [ -f "$HELMCONFIG" ]; then
-curl -fsSL -o "$HELMCONFIG" https://raw.githubusercontent.com/helm/helm/f31d4fb3aacabf6102b3ec9214b3433a3dbf1812/scripts/get-helm-3
-chmod 700 "$HELMCONFIG"
-$HELMCONFIG
+#if ! [ -f "$HELMCONFIG" ]; then
+#curl -fsSL -o "$HELMCONFIG" https://raw.githubusercontent.com/helm/helm/f31d4fb3aacabf6102b3ec9214b3433a3dbf1812/scripts/get-helm-3
+#chmod 700 "$HELMCONFIG"
+#$HELMCONFIG
+
+if ! [ -f "/usr/bin/helm" ]; then
+# fetch tarball, better version control
+mkdir -p ./artifacts/ && cd ./artifacts || return
+wget https://get.helm.sh/helm-v3.17.0-linux-amd64.tar.gz
+tar -zxvf ./helm-v3.17.0-linux-amd64.tar.gz
+cd - || return
+cp "./artifacts/linux-amd64/helm" /usr/bin/helm
+fi
+
+#
+
+## 0. k9s as TUI
+mkdir -p ./artifacts/k9s && cd ./artifacts/k9s || return
+
+# fetch a k9s release
+#
+
+curl -fsSLO "https://github.com/derailed/k9s/releases/download/${K9S_VERSION}/k9s_Linux_amd64.tar.gz" && \
+tar -zxvf "./k9s_Linux_amd64.tar.gz"
+
+# place k9s into the $PATH
+if [ -f "./k9s" ]; then
+    sudo cp ./k9s /bin/
+else
+    printf "\n |> Error: could not locate the k9s binary. Exiting now...\n\n"
 fi
 
 
+## add charts
+
+# 0. airflow gitsync
+. ./scripts/afw_gitsync.sh
+
+# 1. bitnami sealed secrets
+# helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
+
+# 2. ARC (Actions Runner Controller)
+. ./scripts/arc-set.sh
+
+# 3. Airflow Controller
+. ./scripts/airflowpvc.sh
+
+# 4. ilum
+. ./scripts/ilum.sh
 
 # setup the krew plugin manager for kubectl apps
 # and other remote tooling i.e. kubectl-trace #
 #
 if ! [ -f "$KREWCONFIG" ]; then
 (
-  set -x; cd "$(mktemp -d)" &&
+  set -x &&
   OS="$(uname | tr '[:upper:]' '[:lower:]')" &&
   ARCH="$(uname -m | sed -e 's/x86_64/amd64/' -e 's/\(arm\)\(64\)\?.*/\1\2/' -e 's/aarch64$/arm64/')" &&
   KREW="krew-${OS}_${ARCH}" &&
-  mkdir -p "$KJX"/sources/bin/krew && cd "$KJX"/sources/bin/krew || return &&
+  mkdir -p "./artifacts/sources/bin/krew" && cd "./artifacts/sources/bin/krew" || return &&
   curl -fsSLO "https://github.com/kubernetes-sigs/krew/releases/latest/download/${KREW}.tar.gz" &&
-  tar zxvf "${KREW}.tar.gz" &&
-  cp "${KREW}" "$KREWCONFIG" &&
+  tar -zxvf "${KREW}.tar.gz" &&
+  ./"${KREW}" install krew
+  #cp "${KREW}" /bin/krew &&
   cd - || return
 )
+
+# export the PATH environment variable and also redirect it to ~/.profile in order to be read
+# by some shellscripts such as bash, sh, dash.
 export PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH"
+echo export "$(PATH="${KREW_ROOT:-$HOME/.krew}/bin:$PATH")" >> "$HOME/.profile"
+
 fi
 
 
@@ -66,7 +183,7 @@ if ! [ -f "$ARGOCONFIG" ]; then
 curl -fsSL -o "$ARGOCONFIG"  https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 fi
 
-# creaate namespace and apply config
+# create namespace and apply config
 sudo "$ROOTFS_PATH/bin/k3s" kubectl create namespace argocd
 sudo "$ROOTFS_PATH/bin/k3s" kubectl apply -n argocd -f "$ARGOCONFIG"
 #or

@@ -4,8 +4,17 @@ dags:
     existingClaim: dags-volume
     accessMode: ReadWriteOnce
     storageClassName: openebs-hostpath-node2
-  gitSync:
-    enabled: false
+
+gitSync:
+  enabled: true
+  repo: ssh://git@github.com/deomorxsy/pybana.git
+  branch: main
+  rev: HEAD
+  depth: 1
+  # the number of consecutive failures allowed before aborting
+  maxFailures: 0
+  subPath: "./dags/"
+  sshKeySecret: airflow-ssh-git-secret
 
 affinity:
   nodeAffinity:
