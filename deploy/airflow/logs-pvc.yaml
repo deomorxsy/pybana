@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dags-volume
+  namespace: airflow
+  labels:
+    app: airflow-logs
+spec:
+  storageClassName: openebs-hostpath-node2
+  capacity:
+    storage: 5gi #20gi # 5Gi
+  accessModes:
+    - ReadWriteOnce #ReadWriteMany
+  claimRef:
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    name: airflow-logs
+    namespace: airflow
+  hostPath:
+    path: /tmp/data/
+

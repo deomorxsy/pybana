@@ -10,5 +10,7 @@ helm upgrade --install airflow apache-airflow/airflow \
   --reuse-values \
   --set dags.persistence.enabled=true \
   --set dags.persistence.existingClaim=dags-volume \
-  --set dags.gitSync.enabled=false
+  --set dags.gitSync.enabled=true
+
+# --set dags.gitSync.enabled=false
 

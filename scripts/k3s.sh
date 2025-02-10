@@ -1,46 +1,61 @@
 #!/bin/sh
 
-ROOTFS_PATH="/"
+# local, lightweight single-node k8s cluster
+## minimal control plane distro
+mcpd() {
+MNT_DIR="/mnt/ssd/dataStore/k3s-local/local-path-provisioner/storage"
+K3S_VERSION="v1.32.1+k3s1"
 
-# k8s const
-#KUBECONFIG="$ROOTFS_PATH"/etc/rancher/k3s/k3s.yaml
-ARGOCONFIG="./deploy/argo.yaml"
-HELMCONFIG="./scripts/helm.sh"
-KREWCONFIG="./artifacts/sources/bin/krew-linux_amd64"
-K9S_VERSION="v0.32.7"
-ARGOCLI="$ROOTFS_PATH"/usr/bin/argocd
+#KUBELET_DIR="${MNT_DIR}/kubelet":-/var/lib/kubelet
+KUBELET_DIR="${MNT_DIR}/kubelet"
+sudo mkdir -pv "${KUBELET_DIR}"
 
-# remote, HA k8s cluster
-# full control plane distro
-fcpd(){
-
-
-sudo kubeadm init --pod-network-cidr=192.168.0.0/16
-mkdir -p "$HOME/.kube/"
-sudo kubectl config view --raw "$HOME/.kube/config"
-#sudo cp -i /etc/kubernetes/admin.conf $HOME/.kube/config
-sudo chown "$(id -u):$(id -g)" "$HOME/.kube/config"
-
-# set kubeconfig
-KUBECONFIG="$HOME/.kube/config"
-
-
-# setup calico CNI
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.1/manifests/tigera-operator.yaml
-kubectl create -f https://raw.githubusercontent.com/projectcalico/calico/v3.29.1/manifests/custom-resources.yaml
-
-# confirm that calico pods are running
-watch kubectl get pods -n calico-system > "/tmp/running-pods.txt" 2>&1
-
-# remove taint nodes
-kubectl taint nodes --all node-role.kubernetes.io/control-plane-
-kubectl label nodes --all node.kubernetes.io/exclude-from-external-load-balancers-
-
+# imagefs: containerd has a root and state directory
 #
-kubectl get nodes -o wide
+# - https://github.com/containerd/containerd/blob/main/docs/ops.md#base-configuration
+#
+# containerd root -> /var/lib/rancher/k3s/agent/containerd
+#
+# create a soft link (symbolic link)
+CONTAINERD_ROOT_DIR_OLD="/var/lib/rancher/k3s/agent"
+CONTAINERD_ROOT_DIR_NEW="${MNT_DIR}/containerd-root/containerd"
+sudo mkdir -p "${CONTAINERD_ROOT_DIR_OLD}"
+sudo mkdir -p "${CONTAINERD_ROOT_DIR_NEW}"
+sudo ln -s "${CONTAINERD_ROOT_DIR_NEW}" "${CONTAINERD_ROOT_DIR_OLD}"
 
+# containerd state -> /run/k3s/containerd
+#
+CONTAINERD_STATE_DIR_OLD="/run/k3s"
+CONTAINERD_STATE_DIR_NEW="${MNT_DIR}/containerd-state/containerd"
+sudo mkdir -p "${CONTAINERD_STATE_DIR_OLD}"
+sudo mkdir -p "${CONTAINERD_STATE_DIR_NEW}"
+sudo ln -s "${CONTAINERD_STATE_DIR_NEW}" "${CONTAINERD_STATE_DIR_OLD}"
+
+# pvs -> /var/lib/rancher/k3s/storage
+#
+PV_DIR_OLD="/var/lib/rancher/k3s"
+PV_DIR_NEW="${MNT_DIR}/local-path-provisioner/storage"
+sudo mkdir -p "${PV_DIR_OLD}"
+sudo mkdir -p "${PV_DIR_NEW}"
+sudo ln -s "${PV_DIR_NEW}" "${PV_DIR_OLD}"
+
+
+# if
+if ! [ -f "/usr/local/bin/k3s" ]; then
+curl -sfL https://get.k3s.io | INSTALL_K3S_VERSION="$K3S_VERSION" INSTALL_K3S_EXEC="--kubelet-arg "root-dir=$KUBELET_DIR"" sh -
+sudo chmod 644 /etc/rancher/k3s/k3s.yaml
+
+# Solving problems with x509 cert auth in local environments
+# for userspace apps that read the configfile (kubecolor, helm3)
+# ''' sudo k3s kubectl config view --raw | tee "$HOME/.kube/config" ''',
+# which dump config as root and redirect to file as normal user.
+sudo k3s kubectl config view --raw > "$HOME/.kube/config"
+cp /etc/rancher/k3s/k3s.yaml ~/.kube/k3s.yaml
+
+fi
+
+export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 }
-
 
 
 tooling() {
