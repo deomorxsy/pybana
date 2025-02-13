@@ -10,8 +10,8 @@ services:
     environment:
       - git_hash
     build:
-      context: "./deploy/spark/"
-      dockerfile: "./Dockerfile"
+      context: "."
+      dockerfile: "./deploy/spark/Dockerfile"
       tags:
         - "localhost:5000/pyspark:latest"
     stop_signal: SIGINT
@@ -19,15 +19,15 @@ services:
     environment:
       - git_hash
     build:
-      context: "./deploy/airflow/"
-      dockerfile: "./Dockerfile"
+      context: "."
+      dockerfile: "./deploy/airflow/Dockerfile"
       tags:
         - "localhost:5000/airflow:latest"
     stop_signal: SIGINT
-# =======================
-# prometheus stack
-# =======================
-node-exporter:  # prometheus node-exporter
+  # =======================
+  # prometheus stack
+  # =======================
+  node-exporter:  # prometheus node-exporter
     image: prom/node-exporter:latest
     container_name: node-exporter
     restart: unless-stopped
@@ -43,7 +43,7 @@ node-exporter:  # prometheus node-exporter
     ports:
       - 9100:9100
 
-prometheus:
+  prometheus:
     image: prom/prometheus:latest
     container_name: prometheus
     restart: unless-stopped
@@ -58,10 +58,10 @@ prometheus:
       - '--web.enable-lifecycle'
     ports:
       - 9090:9090
-# =======================
-# grafana
-# =======================
-grafana:
+  # =======================
+  # grafana
+  # =======================
+  grafana:
     depends_on:
       prometheus:
         condition: service_healthy

@@ -255,3 +255,31 @@ if echo "$argo_agui" | grep -q "false"; then
     fi
 fi
 }
+
+print_usage() {
+cat <<-END >&2
+USAGE: k3s-setup [-options]
+                - fcpd
+                - tooling
+                - help
+                - version
+eg,
+k3s-setup -fcpd   # install k8s with kubeadm, calico, a control plane and a worker
+k3s-setup -tooling  # install tooling on the control plane
+k3s-setup -help  # shows this help message
+k3s-setup -version # shows script version
+
+See the man page and example file for more info.
+
+END
+
+}
+
+
+# Check the argument passed from the command line
+if [ "$1" = "" ] || [ "$1" = "-h" ]; then
+    print_usage
+else
+    printf "\nInvalid function name. Please specify one of the following:\n"
+    print_usage
+fi

@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: jupyter-ui-ingress
+  namespace: ilum
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  ingressClassName: nginx
+  tls:
+  - hosts:
+    - ${NSC_VALUE_JUPYTER}
+    secretName: jupyter-ui-tls
+  rules:
+  - host: ${NSC_VALUE_JUPYTER}
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: ilum-jupyter
+            port:
+              number: 8888
+

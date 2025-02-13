@@ -1,4 +1,5 @@
 FROM apache/airflow:2.10.4
+
 USER root
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
@@ -10,12 +11,12 @@ USER airflow
 
 WORKDIR /app/
 COPY requirements.txt .
-
+ENV USER USER
 
 RUN <<EOF
 # create user and group
-groupadd -g 1000 -S "${USER}" && \
-useradd -s /bin/sh -u 1000 -G "${USER}" \
+addgroup -g 1000 -S "${USER}" && \
+adduser -s /bin/sh -u 1000 -G "${USER}" \
     -h "/home/${USER}" -D "${USER}" && \
 su "${USER}" && \
 

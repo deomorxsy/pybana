@@ -4,7 +4,7 @@ ROOTFS_PATH="/"
 
 # k8s const
 #KUBECONFIG="$ROOTFS_PATH"/etc/rancher/k3s/k3s.yaml
-ARGOCONFIG="./deploy/argo.yaml"
+ARGOCONFIG="./deploy/install.yaml"
 HELMCONFIG="./scripts/helm.sh"
 KREWCONFIG="./artifacts/sources/bin/krew-linux_amd64"
 K9S_VERSION="v0.32.7"
@@ -77,49 +77,67 @@ fi
 
 
 ## add spark provider to the airflow image
-docker pull registry:latest
-docker start registry
-docker compose -f ./compose.yml --progress-plain build mock_acs && \
-docker push localhost:5000/airflow-custom-spark:1.0.0 -f ./deploy/airflow/Dockerfile
+# docker start registry
 
-#docker build -t airflow-custom-spark:1.0.0 -f ./deploy/airflow/Dockerfile
+#podman pull registry:latest
+#podman create --name registry-container -p 5000:5000 registry:latest
+podman run -d -p 5000:5000 --name registry registry:2.7
 
-CREATE_OCI=$(docker create --name mock_acs localhost:5000/airflow-custom-spark:1.0.0 2>&1 | grep "already in use";)
+# docker compose -f ./compose.yml --progress-plain build mock_acs && \
+# docker buildx build -t localhost:5000/gembag:03 -f ${{ github.workspace }}/Dockerfile .
+# change directory due to context
+cd ./deploy/airflow || return
+podman build -t airflow-custom:1.0.0 -f ./Dockerfile
+
+
+cd - || return
+
+#podman build -t airflow-custom-spark:1.0.0 -f ./deploy/airflow/Dockerfile
+
+
+podman login
+podman images
+podman push --tls-verify=false localhost:5000/airflow-custom-spark:1.0.0
+curl -s -i -X GET http://registry.localhost:5000/v2/_catalog
+
+
+
+CREATE_OCI=$(podman create --name mock_afw localhost:5000/airflow-custom-spark:1.0.0 2>&1 | grep "already in use";)
 
 # the commands below replace kind's load.
 if $CREATE_OCI; then
-    podman generate kube mock_acs > ./artifacts/mock_acs.yaml
+    podman generate kube mock_acs > ../artifacts/mock_afw.yaml
     #kubectl create namespace afw_test
-    kubectl apply -f ./artifacts/mock_acs.yaml -n=afw_test
+    kubectl apply -f ./artifacts/mock_afw.yaml -n=afw_test
 
 # instead of relying on installing and using "kind load"
 # or "podman generate kube", run alpine on a pod and
 # inside of it, use podman
-(
-cat <<EOF
-apiVersion v1
-kind: Pod
-name: alpine-podman
-    namespace: default
-spec:
-    containers:
-    - name: alpine-podman
-      image:
-      command:
-      - sh
-      - c
-      - "apk add --no-cache podman && tail -f /dev/null"
-      - "
-      "docker pull registry:latest
-docker start registry
-docker compose -f ./compose.yml --progress-plain build mock_acs && \
-docker push localhost:5000/airflow-custom-spark:1.0.0 -f ./deploy/airflow/Dockerfile
-
-
-EOF
-) | tee ./deploy/podman-alpine.yaml
-
-sudo crictl create ./deploy/podman-alpine.yaml
+#(
+#cat <<EOF
+#apiVersion v1
+#kind: Pod
+#name: alpine-podman
+#    namespace: default
+#spec:
+#    containers:
+#    - name: alpine-podman
+#      image:
+#      command:
+#      - sh
+#      - c
+#      - "apk add --no-cache podman && tail -f /dev/null"
+#      - "
+#      "docker pull registry:latest
+#docker start registry
+#docker compose -f ./compose.yml --progress-plain build mock_acs && \
+#docker push localhost:5000/airflow-custom-spark:1.0.0 -f ./deploy/airflow/Dockerfile
+#
+#
+#EOF
+#) | tee ./deploy/podman-alpine.yaml
+#
+#sudo crictl create ./deploy/podman-alpine.yaml
 
 
 else
@@ -135,6 +153,96 @@ fi
 # 1. bitnami sealed secrets
 # helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets
 
+# 1. openbao
+# add chart and update helm repo database
+helm repo add openbao https://openbao.github.io/openbao-helm
+helm repo update
+
+# check for repo
+helm search repo openbao/openbao
+
+# BAO_VERSION="0.8.1"
+# create namespace if it doesn't exist and install chart in HA
+# helm install
+# helm upgrade --install openbao openbao/openbao \
+#     --version="$BAO_VERSION" \
+#     --set "server.ha.enabled=true" \
+#     --namespace openbao \
+#     --create-namespace \
+#     --dry-run
+
+helm upgrade --install openbao openbao/openbao \
+    --version="$BAO_VERSION" \
+    --set "server.ha.enabled=true" \
+    --namespace openbao \
+    --create-namespace
+
+kubectl get pods -l app.kubernetes.io/name=openbao -n=openbao
+kubectl get pods -n=openbao
+
+
+# Initialize one OpenBao server with the default number of
+# key shares and default key threshold:
+kubectl exec -ti openbao-0 -- bao operator init
+
+## Unseal the first openbao server until it reaches the key threshold
+kubectl exec -ti openbao-0 -- bao operator unseal # ... Unseal Key 1
+kubectl exec -ti openbao-0 -- bao operator unseal # ... Unseal Key 2
+kubectl exec -ti openbao-0 -- bao operator unseal # ... Unseal Key 3
+
+# Repeat the unseal process for all OpenBao server pods.
+# When all OpenBao server pods are unsealed they report READY 1/1.
+kubectl get pods -l app.kubernetes.io/name=openbao
+
+
+(
+cat <<EOF
+cluster = "infra_gitops" {
+AFW_HOST_0 = "d0-airflow.driva.io"
+QDRANT_HOST_0 = "d0-qdrant.driva.io"
+SECRET_NAME = "airflow-webserver-tls"
+NSC_VALUE = "driva-cluster-2"
+}
+EOF
+) | tee ./artifacts/config.hcl
+
+
+kubectl create secret generic openbao-storage-config \
+    --from-file=config.hcl
+
+# mount secret as extra volume,
+
+helm install openbao openbao/openbao \
+  --set='server.volumes[0].name=userconfig-openbao-storage-config' \
+  --set='server.volumes[0].secret.defaultMode=420' \
+  --set='server.volumes[0].secret.secretName=openbao-storage-config' \
+  --set='server.volumeMounts[0].mountPath=/openbao/userconfig/openbao-storage-config' \
+  --set='server.volumeMounts[0].name=userconfig-openbao-storage-config' \
+  --set='server.volumeMounts[0].readOnly=true' \
+  --set='server.extraArgs=-config=/openbao/userconfig/openbao-storage-config/config.hcl'
+
+
+# eval to the environment
+#export "$(openbao kv get "${NSC_VALUE}" | sed '/^#/d' | xargs)"
+export "$(openbao kv get "NSC_VALUE")"
+
+# parse ${ENV} -> $ENV
+sed 's/\${\([^}]*\)}/$\1/g' ./deploy/airflow/values.yaml > ./artifacts/processed_test.yaml
+
+# apply the processed
+envsubst < ./artifacts/processed_test.yaml > ./artifacts/final_test.yaml
+
+#helm upgrade --install airflow apache-airflow/airflow -n airflow -f "$VAL" --debug
+helm upgrade --install airflow apache-airflow/airflow -n airflow -f ./artifacts/final_test.yaml --debug
+
+#cat test.yaml \
+#    | envsubst  "$(export "$(grep -v '^#' $(openbao kv get "${NSC_VALUE}") | xargs))" \
+#    | "$(helm upgrade --install airflow apache-airflow/airflow -n airflow -f "$VAL" --debug)"
+
+# upgrade the airflow chart now passing the values yaml
+helm upgrade --install airflow apache-airflow/airflow -n airflow -f "$VAL" --debug
+
+
 # 2. ARC (Actions Runner Controller)
 . ./scripts/arc-set.sh
 
@@ -143,6 +251,13 @@ fi
 
 # 4. ilum
 . ./scripts/ilum.sh
+
+kubectl get pods ilum-postgresql-0 \
+    -n=ilum \
+    -o jsonpath={.status.containerStatuses[].containerID} \
+    | sed 's/docker:\/\///' && \
+    echo && echo
+#kubectl get pod ilum-postgresql-0 -o jsonpath={.status.containerStatuses[].containerID} | sed 's/docker:\/\///'
 
 # setup the krew plugin manager for kubectl apps
 # and other remote tooling i.e. kubectl-trace #
@@ -173,30 +288,36 @@ fi
 # setup argocd
 # ===========
 if ! [ -f "$ARGOCONFIG" ]; then
-curl -fsSL -o "$ARGOCONFIG"  https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+#curl -fsSL -o "$ARGOCONFIG"  https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+wget -P ./deploy/ https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 fi
 
 # create namespace and apply config
-sudo "$ROOTFS_PATH/bin/k3s" kubectl create namespace argocd
-sudo "$ROOTFS_PATH/bin/k3s" kubectl apply -n argocd -f "$ARGOCONFIG"
+kubectl create namespace argocd
+kubectl apply -n argocd -f "$ARGOCONFIG"
 #or
 #kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 #
 
 # argocd CLI
 if ! [ -f "$ARGOCLI" ]; then
+cd ./artifacts || return
 curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/download/v2.7.3/argocd-linux-amd64
-cp ./argocd-linux-amd64 "$ROOTFS_PATH/usr/bin/argocd"
-chmod 555 "$ROOTFS_PATH/usr/bin/argocd"
+sudo cp ./argocd-linux-amd64 "$ROOTFS_PATH/usr/bin/argocd"
+sudo chmod 555 "$ROOTFS_PATH/usr/bin/argocd"
 #sudo install -m 555 ./argocd-linux-amd64 /usr/bin/argocd
 rm ./argocd-linux-amd64
+cd - || return
+
+
 fi
 
 # cluster ip of argocd below
 # sudo k3s kubectl get svc -n argocd | grep argocd-server | awk 'NR==1 {print $3}'
 
 # port-forward the argocd webserver
-sudo $ROOTFS_PATH/bin/k3s kubectl port-forward svc/argocd-server -n argocd 8080:443
+kubectl port-forward svc/argocd-server -n argocd 8080:443
+#kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
 
 #IPCONFIG=""
 IPV4_ADDR="localhost"
@@ -240,3 +361,31 @@ if echo "$argo_agui" | grep -q "false"; then
     fi
 fi
 }
+
+print_usage() {
+cat <<-END >&2
+USAGE: k8s-setup [-options]
+                - fcpd
+                - tooling
+                - help
+                - version
+eg,
+k8s-setup -fcpd   # install k8s with kubeadm, calico, a control plane and a worker
+k8s-setup -tooling  # install tooling on the control plane
+k8s-setup -help  # shows this help message
+k8s-setup -version # shows script version
+
+See the man page and example file for more info.
+
+END
+
+}
+
+
+# Check the argument passed from the command line
+if [ "$1" = "" ] || [ "$1" = "-h" ]; then
+    print_usage
+else
+    printf "\nInvalid function name. Please specify one of the following:\n"
+    print_usage
+fi

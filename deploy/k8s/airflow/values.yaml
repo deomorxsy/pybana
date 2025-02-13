@@ -1,0 +1,94 @@
+dags:
+  persistence:
+    enabled: true
+    existingClaim: dags-volume
+    accessMode: ReadWriteOnce
+    storageClassName: openebs-hostpath-node2
+
+#
+# Default airflow repository -- overridden by all the specific images below
+#- image: localhost:5000/airflow-custom-spark:1.0.0
+
+defaultAirflowRepository: airflow-custom-spark
+
+# Default airflow tag to deploy
+defaultAirflowTag: "1.0.0"
+
+gitSync:
+  enabled: true
+  repo: ssh://git@github.com/deomorxsy/pybana.git
+  branch: main
+  rev: HEAD
+  depth: 1
+  # the number of consecutive failures allowed before aborting
+  maxFailures: 0
+  subPath: "./dags/"
+  sshKeySecret: airflow-ssh-git-secret
+
+  # affinity:
+  #   nodeAffinity:
+  #     requiredDuringSchedulingIgnoredDuringExecution:
+  #       nodeSelectorTerms:
+  #         - matchExpressions:
+  #           - key: kubernetes.io/hostname
+  #             operator: In
+  #             values:
+  #               - ${NSC_VALUE}
+
+webserver:
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+            - key: kubernetes.io/hostname
+              operator: In
+              values:
+                - ${NSC_VALUE}
+
+                #scheduler:
+                #  affinity:
+                #    nodeAffinity:
+                #      requiredDuringSchedulingIgnoredDuringExecution:
+                #        nodeSelectorTerms:
+                #          - matchExpressions:
+                #            - key: kubernetes.io/hostname
+                #              operator: In
+                #              values:
+                #                - ${NSC_VALUE}
+                #
+                #workers:
+                #  affinity:
+                #    nodeAffinity:
+                #      requiredDuringSchedulingIgnoredDuringExecution:
+                #        nodeSelectorTerms:
+                #          - matchExpressions:
+                #            - key: kubernetes.io/hostname
+                #              operator: In
+                #              values:
+                #                - ${NSC_VALUE}
+                #
+                ## ArgoCD
+#createUserJob:
+#  useHelmHooks: false
+#  applyCustomEnv: false
+#
+#migrateDatabaseJob:
+#  useHelmHooks: false
+#  applyCustomEnv: false
+#  jobAnnotations:
+#    "argocd.argoproj.io/hook": Sync
+#
+logs:
+  persistence:
+    # Enable persistent volume for storing logs
+    enabled: true
+    # Volume size for logs
+    size: 6Gi
+    # Annotations for the logs PVC
+    annotations: {}
+    # If using a custom storageClass, pass name here
+    storageClassName: openebs-hostpath-node2
+    ## the name of an existing PVC to use
+    existingClaim: airflow-logs
+
