@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 # afw DAG syntax
 from airflow import DAG
 from airflow.decorators import dag, task
+from airflow.models import dagbag
 
 # import operators
 from airflow.operators.empty import EmptyOperator
@@ -36,7 +37,7 @@ test_dag()
 # daily dag deploys
 with DAG(
         dag_id="my_dag_name",
-        start_date=datetime.datetime(2024, 1, 31),
+        start_date=datetime(2024, 1, 31),
         schedule="@daily",
 ):
     EmptyOperator(task_id="task")

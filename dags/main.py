@@ -36,9 +36,16 @@ def f(_: int) -> float:
     return 1 if x ** 2 + y ** 2 <= 1 else 0
 
 
-def session():
+def session(user, passwd):
     spark = SparkSession \
             .builder \
+            .remote("sc://d0-ilum-core.driva.io:443") \
+            .config() \
+            .config() \
+            .config() \
+            .config("spark.hadoop.fs.s3a.access.key", user) \
+            .config("spark.hadoop.fs.s3a.secret.key", passwd) \
+            .config("spark.driver.extraJavaOptions", f"-Dhttp.auth.preference=basic -Dbasic.auth.username={user} -Dbasic.auth.password={passwd}") \
             .appName("PythonPi") \
             .getOrCreate()
 
@@ -60,6 +67,13 @@ def main():
     print("This is cell 2!")
     # %%
     print("This is the last cell!")
+
+    # credentials
+    username = "${{ secrets.SPARK_USER }}"
+    password = "${{ secrets.SPARK_PASSWD }}"
+
+    # encode in basic auth format
+    auth_header = base64.b64encode(f"{username}:{password}".encode()).decode()
 
 
 if __name__ == "__main__":

@@ -10,10 +10,10 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - ${AFW_HOST_0}
+        - ${{ secrets.AFW_HOST_0 }}
       secretName: airflow-webserver-tls
   rules:
-    - host: ${AFW_HOST_0}
+    - host: ${{ secrets.AFW_HOST_0 }}
       http:
         paths:
           - path: /
