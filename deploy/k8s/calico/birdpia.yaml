@@ -1,0 +1,39 @@
+# GNP-config
+apiVersion: projectcalico.org/v3
+kind: GlobalNetworkPolicy
+metadata:
+  name: allow-bgp-6379-179
+spec:
+  selector: role == 'database' #all()
+  types:
+    - Ingress
+    - Egress
+  ingress:
+    - action: Allow
+      metadata:
+        annotations:
+          from: calico-node
+          to: database
+      protocol: TCP
+      source:
+        selector: role == 'calico-node'
+      destination:
+        ports: # [179]
+          - 6379
+          - 179
+  egress:
+    - action: Allow
+      protocol: TCP
+      destination:
+        ports: [179]
+
+---
+# bgppeer config
+apiVersion: projectcalico.org/v3
+kind: BGPPeer
+metadata:
+  name: my-global-peer
+spec:
+  peerIP: ${{ secrets.BGP_PEER_IP }}
+  asNumber: ${{ secrets.BGP_ASNUMBER }}
+

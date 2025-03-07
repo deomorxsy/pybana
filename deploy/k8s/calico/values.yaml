@@ -1,0 +1,20 @@
+installation:
+  enabled: true
+  #<installation resource spec fields to configure>
+
+defaultFelixConfiguration:
+  defaultFelixConfiguration:
+  enabled: true
+  wireguardEnabled: true
+  wireguardEnabledV6: true
+
+---
+
+apiVersion: projectcalico.org/v3
+kind: FelixConfiguration
+metadata:
+  name: default
+spec:
+  ipv6Support: false
+  ipipMTU: 1400
+  chainInsertMode: Append
