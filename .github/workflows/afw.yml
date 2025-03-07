@@ -2,10 +2,11 @@ name: airflow
 
 # This rule triggers when the workflow will run
 on:
-  push:
-    branches:
-      - 'main'
-      - 'releases/**'
+  #push:
+  #  branches:
+  #    - 'main'
+  #    - 'airflow'
+  #    - 'releases/**'
   # run the workflow manually from Actions tab
   workflow_dispatch:
 

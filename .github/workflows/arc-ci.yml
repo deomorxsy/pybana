@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   airflow-spark-job:
@@ -11,6 +12,26 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
+
+      # setup full k8s context
+      - uses: debianmaster/actions-k3s@master
+        id: setup-k8s
+        run: |
+          if [ -n "${{ runner.name }}" ]; then
+            echo "Using Self-Hosted Action Runner Controller (ARC) on local kubernetes cluster"
+            echo "K8S_CONTEXT=local" >> $GITHUB_ENV
+          else
+            echo "using k3s on Github-Hosted Action Runner"
+            echo "K8S_CONTEXT=k3s" >> $GITHUB_ENV
+          fi
+
+      - name: Setup k3s (Github-Hosted Action Runner)
+        if:  env.K8S_CONTEXT == 'k3s'
+      # setup k3s cluster
+        uses: debianmaster/actions-k3s@master
+        id: k3s
+        with:
+          version: 'latest'
 
       - name: Deploy Airflow DAG
         run: |
