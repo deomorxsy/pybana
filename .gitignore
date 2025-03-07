@@ -172,7 +172,7 @@ config-exercise/
 
 # secrets gitignore
 artifacts/.ssh/afw_gitsync
-
+secrets.txt
 #
 
 

@@ -39,7 +39,7 @@ def f(_: int) -> float:
 def session(user, passwd):
     spark = SparkSession \
             .builder \
-            .remote("sc://d0-ilum-core.driva.io:443") \
+            .remote("sc://${{ secrets.ILUM_HOST_0 }}:443") \
             .config() \
             .config() \
             .config() \
