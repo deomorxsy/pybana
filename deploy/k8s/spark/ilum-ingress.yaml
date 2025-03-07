@@ -1,0 +1,28 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ilum-ui-ingress
+  namespace: ilum
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    cert-manager.io/cluster-issuer: letsencrypt-prod
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - ${{ secrets.ILUM_HOST_0 }}
+      secretName: ilum-ui-tls
+  rules:
+    - host: ${{ secrets.AFW_HOST_0 }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ilum-ui
+                port:
+                  number: 8080
+
+
+

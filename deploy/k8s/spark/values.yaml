@@ -4,5 +4,5 @@ controller:
   uiIngress:
     enable: true
     # cluster ingress URL
-    urlFormat: ${{$appNamespace}}/{{$appName}}
+    urlFormat: ilum/ ${{ secrets.appNamespace }}/${{ secrets.appName }}
 

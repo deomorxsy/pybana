@@ -10,10 +10,10 @@ spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - ${NSC_VALUE_JUPYTER}
+    - ${{ secrets.ILUM_JUPYTER_HOST }}
     secretName: jupyter-ui-tls
   rules:
-  - host: ${NSC_VALUE_JUPYTER}
+  - host: ${{ secrets.ILUM_JUPYTER_HOST }}
     http:
       paths:
       - path: /
