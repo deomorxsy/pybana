@@ -3,9 +3,52 @@
 volumes:
     prometheus_data: {}
     grafana_data: {}
+    n8n_runna: {}
 
 
 services:
+  dev_vault:
+    # depends_on:
+    #   hm:
+    #     condition: service_healthy
+    ports:
+    - 8888:8888
+    environment:
+      - git_hash
+    build:
+      context: "."
+      dockerfile:  "./deploy/secrets/Dockerfile.vault"
+      tags:
+        - "localhost:5000/dev_vault:0.23.1"
+  # Secrets replacer
+  secrep:
+    depends_on:
+      dev_vault:
+        condition: service_healthy
+    ports:
+    - 8888:8888
+    environment:
+      - git_hash
+    build:
+      context: "."
+      dockerfile:  "./deploy/secrets/Dockerfile"
+      tags:
+        - "localhost:5000/secrep:1.0.0"
+    entrypoint: ["/bin/echo"]
+    command: ["hmm"]
+  sparkmagic:
+    # image: "ilum/sparkmagic:0.23.1"
+    ports:
+    - 8888:8888
+    environment:
+      - git_hash
+    build:
+      context: "."
+      dockerfile:  "./deploy/containers/sparkmagic/Dockerfile"
+      tags:
+        - "localhost:5000/sparkmagic:0.23.1"
+    entrypoint: ["/bin/echo"]
+    command: ["hmm"]
   pyspark:
     environment:
       - git_hash
@@ -15,14 +58,22 @@ services:
       tags:
         - "localhost:5000/pyspark:latest"
     stop_signal: SIGINT
+  pyarrow_livy:
+    environment:
+      - git-hash
+    build:
+      context: "."
+      dockerfile: "./Dockerfile"
+      tags:
+        - "localhost:5000/pyarrow_livy:latest"
   airflow:
     environment:
       - git_hash
     build:
       context: "."
-      dockerfile: "./deploy/airflow/Dockerfile"
+      dockerfile: "./deploy/k8s/airflow/Dockerfile"
       tags:
-        - "localhost:5000/airflow:latest"
+        - "localhost:5000/airflow-custom_spark-qdrant:latest"
     stop_signal: SIGINT
   # =======================
   # prometheus stack
@@ -77,4 +128,24 @@ services:
     volumes:
       - ./deploy/datasources.yaml:/etc/grafana/provisioning/datasources/datasources.yaml
       - ./grafana:/var/lib/grafana
+  # =======================
+  # misc
+  # =======================
+  n8n:
+    build: .
+    restart: always
+    environment:
+      - N8N_PERSONALIZATION_ENABLED=false
+      - N8N_SECURE_COOKIE=false
+      - N8N_PAYLOAD_SIZE_MAX=1024
+      - N8N_TUNNEL_URL=$${{ secrets.N8N_TUNNEL_URL }}
+      - N8N_WEBHOOK_URL=$${{ secrets.N8N_WEBHOOK_URL }}
+      - N8N_EDITOR_BASE_URL=$${{ secrets.N8N_EDITOR_BASE_URL }}
+        #- N8N_ENDPOINT_WEBHOOK_URL={{ secrets.WEBHOOK_URL }}
+      - WEBHOOK_URL=$${{ secrets.WEBHOOK_URL }}
+    ports:
+      - 5678:5678
+    volumes:
+      - n8n_runna:/home/node/.n8n
+
 
