@@ -1,0 +1,11 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "pybana"
+abstract: "a k8s deployment POC for clustering/streaming and workflow management with Spark and Airflow."
+authors:
+- name: deomorxsy
+  orcid: https://orcid.org/0009-0002-8685-3460
+version: v1.0.0
+doi: 10.5281/zenodo.21003897
+date-released: 2025-03-11
+url: "https://github.com/deomorxsy/pybana"
