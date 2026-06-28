@@ -1,11 +1,47 @@
 # System PATH integration
-environs==10.0.0
+environs==15.0.1
 
 # Static Analysis
-pylint==3.0.3
+pylint==4.0.6
 
 # Tests
-pytest==7.4.3
+pytest==9.1.1
 
 # Spark API
-pyspark==3.5.3
+pyspark==4.1.2
+
+# pyspark dependencies
+setuptools==82.0.1
+pandas==3.0.4
+pyarrow==24.0.0
+grpcio==1.81.1
+
+# ===========================
+# grpcio-protobuf bug:
+# grpcio-status 1.71.0 depends on protobuf<6.0dev and >=5.26.1
+# check the protobuf release available versions with pip
+
+# also, prefer setuptools: https://docs.python.org/3.10/whatsnew/3.10.html#distutils-deprecated
+# ===========================
+protobuf==7.35.1
+grpcio-status==1.81.1
+
+# kerberos authentication for sparkmagic
+krb5==0.9.0
+gssapi==1.11.1
+
+
+# needs linux-headers ethtool
+psutil==7.2.2
+
+# sparkmagic is a wrapper for the
+# livy remote connection to the k8s cluster
+sparkmagic==0.23.0
+
+# extra packages
+sqlalchemy==2.0.51
+s3fs==2026.6.0
+unidecode==1.4.0
+
+# headless execution of ipynb
+papermill==2.7.0
