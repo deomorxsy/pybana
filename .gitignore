@@ -174,10 +174,12 @@ artifacts/forks/*
 # secrets gitignore
 artifacts/.ssh/afw_gitsync
 secrets.txt
-#
+vaultsecrets/secrets.txt
 
+#
 /notes/*
 
+# single sign-on
 /scripts/full-sso.sh
 
 # jupyter notebooks
