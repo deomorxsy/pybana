@@ -169,10 +169,19 @@ logs.txt
 forks/
 artifacts/*
 config-exercise/
+artifacts/forks/*
 
 # secrets gitignore
 artifacts/.ssh/afw_gitsync
 secrets.txt
 #
 
+/notes/*
 
+/scripts/full-sso.sh
+
+# jupyter notebooks
+/artifacts/notebooks/*
+
+# pylint
+/imeigis-pylinter/
