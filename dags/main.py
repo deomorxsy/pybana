@@ -1,9 +1,47 @@
+#!/bin/python3
+
 import sys
+import os
+import base64
+
 from operator import add
 
-from pyspark import SparkConf, SparkContext, random
 # sparkSession is built atop of Spark's SQL.
+from pyspark import SparkConf, SparkContext, random
 from pyspark.sql import SparkSession
+
+# import sparkwrapper
+from spark_wrapper.spark_wrapper import SparkWrapper
+from dotenv import load_dotenv
+load_dotenv()
+
+# get AWS environment variables
+ak = os.getenv("AWS_ACCESS_KEY")
+sk = os.getenv("AWS_SECRET_KEY")
+ep = os.getenv("AWS_ENDPOINT_URL")
+
+# get postgres environment variables
+pg_user = os.getenv("PG_USER")
+pg_pwd = os.getenv("PG_PWD")
+pg_host = os.getenv("PG_HOST")
+pg_port = os.getenv("PG_PORT")
+pg_db = os.getenv("PG_DB")
+
+
+sw = SparkWrapper(num_cores=1, memory_gb=2) \
+    .set_s3_conf(ak, sk, ep) \
+    .set_pg_conf(pg_user, pg_pwd, pg_host, pg_port, pg_db)
+
+spark = sw.create_session()
+# %%
+df = spark.read.parquet('s3a://s3.bhs.io.cloud.ovh.net/ ')
+# df = spark.read.parquet('s3a://acmelake/sites/silver/whois/brazil/')
+df.show()
+# %%
+# postgres
+schema_table = "redes_sociais.linkedins_crawleados"
+df = sw.read_pg(schema_table=schema_table)
+df.show()
 
 
 def afw():
@@ -41,11 +79,12 @@ def session(user, passwd):
             .builder \
             .remote("sc://${{ secrets.ILUM_HOST_0 }}:443") \
             .config() \
-            .config() \
-            .config() \
             .config("spark.hadoop.fs.s3a.access.key", user) \
             .config("spark.hadoop.fs.s3a.secret.key", passwd) \
-            .config("spark.driver.extraJavaOptions", f"-Dhttp.auth.preference=basic -Dbasic.auth.username={user} -Dbasic.auth.password={passwd}") \
+            .config("spark.driver.extraJavaOptions",
+                    (f"-Dhttp.auth.preference=basic"
+                     f"-Dbasic.auth.username={user}"
+                     f"-Dbasic.auth.password={passwd}")) \
             .appName("PythonPi") \
             .getOrCreate()
 
