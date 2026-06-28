@@ -1,0 +1,184 @@
+# Enable lineage (if you need it)
+global:
+  lineage:
+    enabled: true
+
+# ilum-core settings
+ilum-core:
+  enabled: true
+  sql:
+    enabled: true
+  hiveMetastore:
+    enabled: true
+  mongo:
+    uri: "mongodb://ilumongo_acmeorg01:samplePasswd@ilum-mongodb-0.ilum-mongodb-headless.ilum.svc.cluster.local/ilum-default?replicaSet=rs0&appName=mongosh+2.1.1"
+    # uri: "mongodb://ilumongo_acmeorg01:samplePasswd@ilum-mongodb.ilum.svc.cluster.local/ilum-default?directConnection=true&appName=mongosh+2.1.1"
+    statusProbe:
+    enabled: false
+    image: ilum/mongodb:6.0.5
+  minio:
+    statusProbe:
+    enabled: false
+    baseUrl: "http://ilum-minio:9000"
+    image: curlimages/curl:8.5.0
+  security:
+    type: "internal"
+    internal:
+      users:
+        - username: "admin"
+          initialPassword: "admin"
+          roles:
+            - "ADMIN"
+        - username: "dummy_user01"
+          initialPassword: "dummyd01"
+          roles:
+            - "USER"
+        - username: "dummy_user02"
+          initialPassword: "dummyd02"
+          roles:
+            - "DATA_ENGINEER"
+        - username: "dummy_user03"
+          initialPassword: "dummyd03"
+          roles:
+            - "DATA_SCIENTIST"
+        - username: "dummy_user04"
+          password: "dummyd04"
+          roles:
+            - "DATA_SCIENTIST"
+        - username: "dummy_user05"
+          password: "dummy05"
+          roles:
+            - "DATA_SCIENTIST"
+        - username: "dummy_user06"
+          password: "dummy06"
+          roles:
+            - "DATA_SCIENTIST"
+        - username: "dummy_user07"
+          password: "dumm07"
+          roles:
+            - "DATA_SCIENTIST"
+        - username: "dummy_user08"
+          password: "dummy08"
+          roles:
+            - "DATA_SCIENTIST"
+
+# MongoDB settings (our built-in MongoDB)
+mongodb:
+  enabled: true
+  replicaSet:
+    enabled: true # this one is needed
+  # architecture: standalone  # Matches your standalone preference
+  architecture: replicaset
+  replicaCount: 3
+  persistence:
+    enabled: true
+  auth:
+    enabled: true
+    rootPassword: "REP_ILUM_MONGODB_AUTH_ROOTPASSWORD"
+    username: "REP_ILUM_MONGOB_AUTH_USERNAME"
+    password: "REP_ILUM_MONGODB_AUTH_PASSWORD"
+    database: "REP_ILUM_MONGODB_AUTH_DB"
+
+# MinIO settings
+minio:
+  enabled: true
+  extraEnvVars: |
+    - name: MINIO_BROWSER_REDIRECT_URL
+      value: "http://ilum-minio:9001/external/minio/"
+  fullnameOverride: "ilum-minio"
+  defaultBuckets: "ilum-files, ilum-data, ilum-tables, ilum-mlflow"
+  auth:
+    rootUser: "REP_ILUM_MINIO_AUTH_ROOTUSER"
+    rootPassword: "REP_ILUM_MINIO_AUTH_ROOTPASSWORD"
+  persistence:
+    enabled: true
+    size: 8Gi
+    storageClass: openebs-hostpath
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+kubernetes:
+    defaultCluster:
+      config:
+        spark.hadoop.fs.s3a.bucket.ilum-data.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+        spark.hadoop.fs.s3a.bucket.ilum-data.endpoint: "http://ilum-minio.ilum.svc.cluster.local:9000"
+        spark.hadoop.fs.s3a.bucket.ilum-data.region: "us-east-1"
+        spark.hadoop.fs.s3a.bucket.ilum-data.access.key: "minioadmin"
+        spark.hadoop.fs.s3a.bucket.ilum-data.secret.key: "minioadmin"
+        spark.hadoop.fs.s3a.bucket.ilum-data.path.style.access: "true"
+        spark.hadoop.fs.s3a.bucket.ilum-data.fast.upload: "true"
+        spark.hadoop.fs.s3a.aws.credentials.provider: "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+        spark.sql.warehouse.dir: "s3a://ilum-data/"
+    initClusterOnStartup: "true"
+    # false by default
+    upgradeClusterOnStartup: "true"
+    api:
+      url: "https://kubernetes.default.svc"
+    container:
+      image: "ilum/spark:3.5.3-delta"
+    storage:
+      type: "s3"
+    s3:
+      host: "ilum-minio"
+      region: "us-east-1"
+      port: 9000
+      sparkBucket: ilum-files
+      dataBucket: ilum-tables
+      extraBuckets:
+        - ilum-mlflow
+        - ilum-data
+      accessKey: "REP_ILUM_K8S_S3_AK"
+      secretKey: "REP_ILUM_K8S_S3_SK"
+
+
+# Airflow settings
+airflow:
+  enabled: true
+  fernetKey: "$AFW_FERNET"
+
+# ilum-jupyter settings
+ilum-jupyter:
+  enabled: true
+
+# ilum-livy-proxy settings
+ilum-livy-proxy:
+  enabled: true
+
+# ilum-livy-proxy settings
+ilum-hive-metastore:
+  enabled: true
+
+# Gitea settings
+gitea:
+  enabled: true
+  gitea:
+    config:
+      database:
+        DB_TYPE: "postgres"
+        USER: "REP_ILUM_GITEA_DB_USER"
+        PASSWD: "REP_ILUM_GITEA_DB_PASSWD"
+
+# PostgreSQL settings
+postgresql:
+  enabled: true
+
+# Kube Prometheus Stack settings
+kube-prometheus-stack:
+  enabled: true
+
+# ilum-n8n settings
+ilum-n8n:
+  enabled: true
+
+# ilum-sql settings
+ilum-sql:
+  enabled: true
+
