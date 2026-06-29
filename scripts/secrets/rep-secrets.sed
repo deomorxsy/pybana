@@ -1,6 +1,6 @@
 # k8s cluster
-s/\${{ secrets.DRIVA_CLUSTER_0 }}/$DRIVA_CLUSTER_0/g
-s/\${{ secrets.DRIVA_CLUSTER_2 }}/$DRIVA_CLUSTER_2/g
+s/\${{ secrets.ACMEORG_CLUSTER_0 }}/$ACMEORG_CLUSTER_0/g
+s/\${{ secrets.ACMEORG_CLUSTER_2 }}/$ACMEORG_CLUSTER_2/g
 
 # Mongo
 
