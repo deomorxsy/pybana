@@ -1,0 +1,28 @@
+# pv.yaml
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: airflow-dags-nfs-pv
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  nfs:
+    server: <NFS_SERVER_IP_OR_SERVICE>  # e.g. nfs-service.nfs-mayastor.svc.cluster.local
+    path: /nfsshare
+  persistentVolumeReclaimPolicy: Retain
+---
+# pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-dags-nfs-pvc
+  namespace: airflow
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  volumeName: airflow-dags-nfs-pv

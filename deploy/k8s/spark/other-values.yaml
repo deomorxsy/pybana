@@ -1,0 +1,921 @@
+global:
+  lineage:
+    enabled: true
+  security:
+    oauth2:
+      audiences:
+      clientId:
+      clientSecret:
+      issuerUri:
+  logAggregation:
+    enabled: false
+    loki:
+      enabled: false
+      url: http://ilum-loki-gateway
+    promtail:
+      enabled: false
+
+ilum-core:
+  enabled: true
+  image: "ilum/core:6.3.2"
+  replicaCount: 1
+  mongo:
+    uri: mongodb://ilum-mongodb-0.ilum-mongodb-headless:27017,ilum-mongodb-1.ilum-mongodb-headless:27017/ilum-default?replicaSet=rs0
+  minio:
+    statusProbe:
+      enabled: true
+      baseUrl: "http://ilum-minio:9000"
+      image: curlimages/curl:8.5.0
+  communication:
+    type: "grpc"
+  kafka:
+    address: "ilum-kafka-controller-0.ilum-kafka-controller-headless:9092"
+  kubernetes:
+    defaultCluster:
+      config:
+        spark.hadoop.fs.s3a.bucket.ilum-data.impl: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+        spark.hadoop.fs.s3a.bucket.ilum-data.endpoint: "http://ilum-minio:9000"
+        spark.hadoop.fs.s3a.bucket.ilum-data.region: "us-east-1"
+        spark.hadoop.fs.s3a.bucket.ilum-data.access.key: "minioadmin"
+        spark.hadoop.fs.s3a.bucket.ilum-data.secret.key: "minioadmin"
+        spark.hadoop.fs.s3a.bucket.ilum-data.path.style.access: "true"
+        spark.hadoop.fs.s3a.bucket.ilum-data.fast.upload: "true"
+        spark.hadoop.fs.s3a.aws.credentials.provider: "org.apache.hadoop.fs.s3a.SimpleAWSCredentialsProvider"
+        spark.sql.warehouse.dir: "s3a://ilum-data/"
+    initClusterOnStartup: "true"
+    upgradeClusterOnStartup: "false"
+    api:
+      url: "https://kubernetes.default.svc"
+    container:
+      image: "ilum/spark:3.5.3-delta"
+    storage:
+      type: "s3"
+    s3:
+      host: "ilum-minio"
+      region: "us-east-1"
+      port: 9000
+      sparkBucket: ilum-files
+      dataBucket: ilum-tables
+      extraBuckets:
+        - ilum-mlflow
+        - ilum-data
+      accessKey: "minioadmin"
+      secretKey: "minioadmin"
+    gcs:
+      clientEmail: ""
+      sparkBucket: ilum-files
+      dataBucket: ilum-tables
+      privateKey: ""
+      privateKeyId: ""
+    wasbs:
+      accountName: ""
+      accessKey: ""
+      sparkContainer: ilum-files
+      dataContainer: ilum-tables
+    hdfs:
+      hadoopUsername: "hdfs"
+      config: []
+      sparkCatalog: ilum-files
+      dataCatalog: ilum-tables
+      keyTab: ""
+      principal: ""
+      krb5: ""
+      trustStore: ""
+
+  security:
+    type: "internal"
+    internal:
+      users:
+        - username: "admin"
+          initialPassword: "admin"
+          roles:
+            - "ADMIN"
+    ldap:
+      urls:
+      base: ""
+      username: ""
+      password: ""
+      passwordEncoder: "adaptive"
+      userMapping:
+        base: ""
+        filter: "uid={0}"
+        passwordAttr: "userPassword"
+      groupMapping:
+        base: ""
+        filter: "(member={0})"
+        memberAttribute: "uid"
+        name: "cn"
+    oauth2:
+      mapping:
+        id: ""
+        name: "sub"
+        email: "email"
+        fullname: "fullname"
+        description: ""
+        department: ""
+        groups: "groups"
+        roles: "roles"
+        singleGroup: ""
+        singleRole: ""
+        enabled: ""
+        enabledTrue: ""
+    jwt:
+      issuerUri: "https://ilum.cloud"
+      timeToLive: "8h"
+      publicKey: ""
+      privateKey: ""
+    authorities:
+      roles:
+        prefix: "ROLE_"
+        claimName: "groups"
+        # mappings:
+        #   administrators: admin
+        #   managers: user
+      scopes:
+        prefix: "SCOPE_"
+        claimName: "scp"
+        # mappings:
+    trustStore:
+      enabled: false
+      secretName: "tls-secret"
+      caSecretFileName: "ca.crt"
+      password: "CHANGEMEPLEASE"
+    keyStore:
+      enabled: false
+      secretName: "tls-secret"
+      secretFileName: "keystore.p12"
+      password: "CHANGEMEPLEASE"
+
+  historyServer:
+    enabled: true
+
+  job:
+    retain:
+      hours: 168
+    openLineage:
+      transport:
+        type: http
+        serverUrl: http://ilum-marquez:9555
+        endpoint: /external/lineage/api/v1/lineage
+    prometheus:
+      enabled: true
+    graphite:
+      enabled: false
+      host: "ilum-graphite-graphite-tcp"
+      port: 9109
+      period: 10
+      unit: seconds
+    healthcheck:
+      enabled: true
+      interval: 300
+      tolerance: 3600
+    memorysettings:
+      executors: 2
+      executorMemory: 1g
+      driverMemory: 1g
+      executorCores: 1
+      driverCores: 1
+      dynamicAllocationEnabled: false
+      minExecutors: 0
+      initialExecutors: 0
+      maxExecutors: 20
+
+  hiveMetastore:
+    enabled: false
+    address: thrift://ilum-hive-metastore:9083
+    version: 3.1.3
+    warehouseDir: s3a://ilum-data/
+
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+ilum-ui:
+  enabled: true
+  image: "ilum/ui:6.3.2"
+  replicaCount: 1
+  runtimeVars:
+    defaultConfigMap:
+      enabled: false
+  nginx:
+    config:
+      enabled: false
+      extraLocation: ""
+      default: true
+      custom: ""
+
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+ilum-livy-proxy:
+  enabled: true
+  image: "ilum/livy-proxy:6.3.2"
+  client:
+    endpoint:
+      ilum: "http://ilum-core:9888/api/v1"
+  ilumUI:
+    publicEndpoint: "http://localhost:9777"
+
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+mongodb:
+  enabled: true
+  image:
+    registry: docker.io
+    repository: ilum/mongodb
+    tag: 6.0.5
+  fullnameOverride: "ilum-mongodb"
+  architecture: "replicaset"
+  auth:
+    enabled: false
+  volumePermissions:
+    enabled: true
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+kafka:
+  enabled: false
+  extraConfig: |
+    auto.create.topics.enable=false
+    message.max.bytes=20000000
+  fullnameOverride: "ilum-kafka"
+  listeners:
+    client:
+      protocol: PLAINTEXT
+  controller:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: kubernetes.io/arch
+              operator: In
+              values:
+              - amd64
+              - arm64
+
+minio:
+  enabled: true
+  extraEnvVars: |
+    - name: MINIO_BROWSER_REDIRECT_URL
+      value: "http://ilum-minio:9001/external/minio/"
+  fullnameOverride: "ilum-minio"
+  defaultBuckets: "ilum-files, ilum-data, ilum-tables, ilum-mlflow"
+  auth:
+    rootUser: "minioadmin"
+    rootPassword: "minioadmin"
+  persistence:
+    size: 16Gi
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+ilum-jupyter:
+  enabled: true
+  image: "ilum/sparkmagic:0.23.1"
+  livyEndpoint: "http://ilum-livy-proxy:8998"
+  git:
+    enabled: true
+    username: ilum
+    password: ilum
+    email: ilum@ilum
+    repository: jupyter
+    address: "ilum-gitea-http:3000"
+
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+ilum-zeppelin:
+  enabled: false
+  fullnameOverride: "ilum-zeppelin"
+  image: "apache/zeppelin:0.10.1"
+  livyEndpoint: "http://ilum-livy-proxy:8998"
+
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+
+airflow:
+  enabled: false
+  fullnameOverride: "ilum-airflow"
+  useStandardNaming: true
+  images:
+    airflow:
+      repository: "ilum/airflow"
+      tag: 2.9.3
+  executor: "LocalKubernetesExecutor"
+  extraEnv: |
+    - name: AIRFLOW__API__AUTH_BACKENDS
+      value: "airflow.api.auth.backend.default"
+    - name: MINIO_USERNAME
+      value: "minioadmin"
+    - name: MINIO_PASSWORD
+      value: "minioadmin"
+    - name: MINIO_ENDPOINT
+      value: "http://ilum-minio:9000"
+  data:
+    metadataConnection:
+      user: postgres
+      pass: "CHANGEMEPLEASE"
+      protocol: postgresql
+      host: "ilum-postgresql-hl"
+      port: 5432
+      db: airflow
+      sslmode: disable
+  webserverSecretKey: "CHANGE ME PLEASE!"
+  scheduler:
+    args: ["bash", "-c", "exec /opt/airflow/ilum-connection-create.sh & airflow scheduler"]
+  migrateDatabaseJob:
+    useHelmHooks: false
+  triggerer:
+    enabled: false
+  statsd:
+    enabled: false
+  redis:
+    enabled: false
+    serviceAccount:
+      create: false
+  postgresql:
+    enabled: false
+  config:
+    webserver:
+      base_url: "http://ilum-airflow-webserver:8080/external/airflow"
+    logging:
+      remote_logging: "True"
+      remote_base_log_folder: s3://ilum-data/airflow/logs
+      encrypt_s3_logs: False
+      remote_log_conn_id: ilum-minio
+  dags:
+    gitSync:
+      enabled: true
+      repo: "http://ilum-gitea-http:3000/ilum/airflow.git"
+      branch: master
+      ref: HEAD
+      depth: 1
+      maxFailures: 0
+      subPath: ""
+      credentialsSecret: ilum-git-credentials
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+superset:
+  enabled: false
+  protocol: "http"
+  redis:
+    serviceAccount:
+      create: false
+  fullnameOverride: "ilum-superset"
+  image:
+    repository: ilum/superset
+    tag: 4.1.2
+  extraEnv:
+    SUPERSET_APP_ROOT: "/external/superset"
+  extraSecretEnv:
+    SUPERSET_SECRET_KEY: "CHANGEMEPLEASE"
+  postgresql:
+    enabled: false
+  supersetNode:
+    livenessProbe:
+      httpGet:
+        path: "/external/superset/health"
+    readinessProbe:
+      httpGet:
+        path: "/external/superset/health"
+    startupProbe:
+      httpGet:
+        path: "/external/superset/health"
+    connections:
+        db_host: "ilum-postgresql-hl"
+        db_port: "5432"
+        db_user: ilum
+        db_pass: "CHANGEMEPLEASE"
+        db_name: superset
+  configOverrides:
+    ilum_extra_config: |
+      ENABLE_PROXY_FIX = True
+      PROXY_FIX_CONFIG = {"x_for": 1, "x_proto": 1, "x_host": 0, "x_port": 0, "x_prefix": 1}
+  extraConfigs:
+    import_datasources.yaml: |
+      databases:
+      - database_name: Ilum-SQL
+        sqlalchemy_uri: "hive://ilum-superset@ilum-sql-thrift-binary:10009/default"
+        expose_in_sqllab: true
+        allow_run_async: false
+        allow_ctas: true
+        allow_cvas: true
+        allow_dml: true
+        allow_csv_upload: false
+      - database_name: Ilum-SQL-Trino
+        sqlalchemy_uri: "trino://ilum@ilum-trino:8080/ilum-delta"
+        expose_in_sqllab: true
+        allow_run_async: false
+        allow_ctas: true
+        allow_cvas: true
+        allow_dml: true
+        allow_csv_upload: false
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                  - amd64
+                  - arm64
+
+mlflow:
+  enabled: false
+  fullnameOverride: "ilum-mlflow"
+  tracking:
+    enabled: true
+    containerSecurityContext:
+      enabled: true
+      privileged: true
+      allowPrivilegeEscalation: true
+    auth:
+      enabled: false
+    updateStrategy:
+      type: Recreate
+    service:
+      type: ClusterIP
+      ports:
+        http: 5000
+    metrics:
+      enabled: true
+  waitContainer:
+    containerSecurityContext:
+      enabled: true
+      privileged: true
+      allowPrivilegeEscalation: true
+
+  postgresql:
+    enabled: false
+  externalDatabase:
+    dialectDriver: "postgresql"
+    host: "ilum-postgresql-0.ilum-postgresql-hl"
+    port: 5432
+    user: ilum
+    database: mlflow
+    authDatabase: mlflow_auth
+    existingSecret: "ilum-postgresql"
+    existingSecretPasswordKey: "postgres-password"
+  minio:
+    enabled: false
+  externalS3:
+    host: "ilum-minio"
+    port: 9000
+    useCredentialsInSecret: true
+    existingSecret: "ilum-minio"
+    existingSecretAccessKeyIDKey: "root-user"
+    existingSecretKeySecretKey: "root-password"
+    protocol: "http"
+    bucket: "ilum-mlflow"
+
+ilum-marquez:
+  marquez:
+    db:
+      password: "CHANGEMEPLEASE"
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+postgresql:
+  enabled: true
+  fullnameOverride: ilum-postgresql
+  auth:
+    postgresPassword: "CHANGEMEPLEASE"
+    username: ilum
+    password: "CHANGEMEPLEASE"
+  primary:
+    affinity:
+      nodeAffinity:
+        requiredDuringSchedulingIgnoredDuringExecution:
+          nodeSelectorTerms:
+          - matchExpressions:
+            - key: kubernetes.io/arch
+              operator: In
+              values:
+              - amd64
+              - arm64
+
+postgresExtensions:
+  enabled: true
+  image: "bitnami/postgresql:16"
+  pullPolicy: IfNotPresent
+  imagePullSecrets: []
+  host: "ilum-postgresql-hl"
+  port: 5432
+  databasesToCreate: marquez,airflow,metastore,mlflow,mlflow_auth,superset,gitea,n8n
+  auth:
+    username: ilum
+    password: "CHANGEMEPLEASE"
+  ttlSeconds: 120
+  nodeSelector: {}
+  tolerations: []
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/arch
+                operator: In
+                values:
+                  - amd64
+                  - arm64
+
+kube-prometheus-stack:
+  enabled: false
+  releaseLabel: true
+  kubeStateMetrics:
+    enabled: false
+  nodeExporter:
+    enabled: false
+  alertmanager:
+    enabled: false
+  grafana:
+    grafana.ini:
+      server:
+        root_url: "%(protocol)s://%(domain)s:%(http_port)s/external/grafana"
+        serve_from_sub_path: "true"
+    adminPassword: admin
+    sidecar:
+      dashboards:
+        folderAnnotation: "grafana_folder"
+        provider:
+          foldersFromFilesStructure: "true"
+
+ilum-hive-metastore:
+  enabled: false
+  postgresql:
+    image: "bitnami/postgresql:16"
+    host: "ilum-postgresql-hl"
+    port: 5432
+    database: metastore
+    auth:
+      username: ilum
+      password: "CHANGEMEPLEASE"
+
+  storage:
+    metastore:
+      warehouse: "s3a://ilum-data/"
+    type: "s3"
+    s3:
+      host: "ilum-minio"
+      port: 9000
+      accessKey: "minioadmin"
+      secretKey: "minioadmin"
+    gcs:
+      clientEmail: ""
+      privateKey: ""
+      privateKeyId: ""
+    wasbs:
+      accountName: ""
+      accessKey: ""
+    hdfs:
+      hadoopUsername: "hdfs"
+      config: []
+
+loki:
+  nameOverride: ilum-loki
+  monitoring:
+    selfMonitoring:
+      enabled: false
+      grafanaAgent:
+        installOperator: false
+      lokiCanary:
+        enabled: false
+  test:
+    enabled: false
+  loki:
+    auth_enabled: false
+    storage:
+      bucketNames:
+        chunks: ilum-files
+        ruler: ilum-files
+        admin: ilum-files
+      type: s3
+      s3:
+        endpoint: http://ilum-minio:9000
+        region: us-east-1
+        secretAccessKey: minioadmin
+        accessKeyId: minioadmin
+        s3ForcePathStyle: true
+        insecure: true
+    compactor:
+      retention_enabled: true
+      deletion_mode: filter-and-delete
+      shared_store: s3
+    limits_config:
+      allow_deletes: true
+
+promtail:
+  config:
+    clients:
+      - url: http://ilum-loki-write:3100/loki/api/v1/push
+    snippets:
+      pipelineStages:
+        - match:
+            selector: '{ilum_logAggregation!="true"}'
+            action: drop
+            drop_counter_reason: non_ilum_log
+      extraRelabelConfigs:
+        - action: labelmap
+          regex: "__meta_kubernetes_pod_label_ilum(.*)"
+          replacement: "ilum${1}"
+        - action: labelmap
+          regex: "__meta_kubernetes_pod_label_spark(.*)"
+          replacement: "spark${1}"
+
+      scrapeConfigs: |
+        - job_name: kubernetes-pods
+          pipeline_stages:
+            {{- toYaml .Values.config.snippets.pipelineStages | nindent 4 }}
+          kubernetes_sd_configs:
+            - role: pod
+              namespaces:
+                names:
+                - {{ .Release.Namespace }}
+          relabel_configs:
+            - source_labels:
+                - __meta_kubernetes_pod_controller_name
+              regex: ([0-9a-z-.]+?)(-[0-9a-f]{8,10})?
+              action: replace
+              target_label: __tmp_controller_name
+            - source_labels:
+                - __meta_kubernetes_pod_label_app_kubernetes_io_name
+                - __meta_kubernetes_pod_label_app
+                - __tmp_controller_name
+                - __meta_kubernetes_pod_name
+              regex: ^;*([^;]+)(;.*)?$
+              action: replace
+              target_label: app
+            - source_labels:
+                - __meta_kubernetes_pod_label_app_kubernetes_io_instance
+                - __meta_kubernetes_pod_label_instance
+              regex: ^;*([^;]+)(;.*)?$
+              action: replace
+              target_label: instance
+            - source_labels:
+                - __meta_kubernetes_pod_label_app_kubernetes_io_component
+                - __meta_kubernetes_pod_label_component
+              regex: ^;*([^;]+)(;.*)?$
+              action: replace
+              target_label: component
+            {{- if .Values.config.snippets.addScrapeJobLabel }}
+            - replacement: kubernetes-pods
+              target_label: scrape_job
+            {{- end }}
+            {{- toYaml .Values.config.snippets.common | nindent 4 }}
+            {{- with .Values.config.snippets.extraRelabelConfigs }}
+            {{- toYaml . | nindent 4 }}
+            {{- end }}
+
+ilum-sql:
+  enabled: false
+  fullnameOverride: "ilum-sql"
+  services:
+    trino:
+      enabled: true
+  config:
+    spark:
+      defaults: |
+        spark.submit.proxyUser.allowCustomClasspathInClusterMode=true
+        spark.kubernetes.memoryOverheadFactor=0.4
+        spark.cleaner.periodicGC.interval=5min
+        ## Java options
+        spark.driver.extraJavaOptions=-XX:+IgnoreUnrecognizedVMOptions -Divy.cache.dir=/tmp -Divy.home=/tmp -XX:+UnlockExperimentalVMOptions -XX:+ExplicitGCInvokesConcurrent -XX:+UseZGC  -XX:+UseCompressedOops -XX:MaxGCPauseMillis=50 -XX:+AlwaysPreTouch -XX:+OptimizeStringConcat
+        spark.executor.extraJavaOptions=-XX:+IgnoreUnrecognizedVMOptions -XX:+UnlockExperimentalVMOptions -XX:+ExplicitGCInvokesConcurrent -XX:+UseZGC  -XX:+UseCompressedOops -XX:MaxGCPauseMillis=50 -XX:+AlwaysPreTouch -XX:+OptimizeStringConcat
+        ## DRA
+        # spark.dynamicAllocation.enabled=true
+        # spark.shuffle.service.enabled=false
+        # spark.decommission.enabled=true
+        # spark.storage.decommission.enabled=true
+        # spark.storage.decommission.shuffleBlocks.enabled=true
+        # spark.dynamicAllocation.minExecutors=1
+        # spark.dynamicAllocation.initialExecutors=1
+        # spark.dynamicAllocation.maxExecutors=10
+        # spark.dynamicAllocation.executorAllocationRatio=0.5
+        # spark.dynamicAllocation.executorIdleTimeout=120s
+        # spark.dynamicAllocation.cachedExecutorIdleTimeout=30min
+        # spark.dynamicAllocation.schedulerBacklogTimeout=1s
+        # spark.dynamicAllocation.sustainedSchedulerBacklogTimeout=90s
+        # spark.dynamicAllocation.shuffleTracking.enabled=true
+        ## AQE
+        # spark.sql.adaptive.enabled=true
+        # spark.sql.adaptive.forceApply=false
+        # spark.sql.adaptive.logLevel=info
+        # spark.sql.adaptive.localShuffleReader=true
+        # spark.sql.adaptive.advisoryPartitionSizeInBytes=64m
+        # spark.sql.adaptive.coalescePartitions.enabled=true
+        # spark.sql.adaptive.coalescePartitions.initialPartitionNum=512
+        # spark.sql.adaptive.fetchShuffleBlocksInBatch=true
+        # spark.sql.adaptive.skewJoin.enabled=true
+        # spark.sql.adaptive.skewJoin.skewedPartitionFactor=3
+        # spark.sql.adaptive.skewJoin.skewedPartitionThresholdInBytes=256m
+        # spark.sql.adaptive.nonEmptyPartitionRatioForBroadcastJoin=0.3
+        ## CBO
+        # spark.sql.cbo.enabled=true
+        # spark.sql.cbo.joinReorder.enabled=true
+        # spark.sql.cbo.joinReorder.dp.star.filter=true
+        # spark.sql.cbo.planStats.enabled=true
+        # spark.sql.cbo.starSchemaDetection=true
+        ## SQL
+        # spark.sql.optimizer.runtimeFilter.semiJoinReduction.enabled=true
+        # spark.sql.inMemoryColumnarStorage.compressed=true
+        # spark.sql.inMemoryColumnarStorage.batchSize=10000
+        # spark.sql.shuffle.partitions=200
+        # spark.sql.files.maxPartitionBytes=128m
+        # spark.sql.broadcastTimeout=300
+        # spark.sql.autoBroadcastJoinThreshold=10m
+        ## IO
+        # spark.io.compression.codec=lz4
+        # spark.rdd.compress=true
+        # spark.shuffle.compress=true
+        # spark.shuffle.spill.compress=true
+        # spark.network.timeout=120s
+        # spark.scheduler.mode=FAIR
+    trino:
+      catalog: ilum-delta
+  ilumSubmit:
+    enabled: true
+
+graphite-exporter:
+  fullnameOverride: "ilum-graphite"
+  graphite:
+    enabled: false
+    mapping: |
+      mappings:
+        - match: '(.+?)\.(.+?)\.(.+?)\.(.+?)\.(.+?)\.(\bcount\b|\bm15_rate\b|\bm1_rate\b|\bm5_rate\b|\bmax\b|\bmean\b|\bmean_rate\b|\bmin\b|\bp50\b|\bp75\b|\bp95\b|\bp98\b|\bp99\b|\bp999\b|\bstddev\b)'
+          match_type: regex
+          name: "metrics_executor_${4}_${5}"
+          labels:
+            application_id: "${2}"
+            application_name: "${1}"
+            executor_id: "${3}"
+            stat: "${6}"
+        - match: '(.+?)\.(.+?)\.(.+?)\.(.+?)\.(.+?)\.(.+)'
+          match_type: regex
+          name: "metrics_executor_${4}_${5}_${6}"
+          labels:
+            application_id: "${2}"
+            application_name: "${1}"
+            executor_id: "${3}"
+        - match: '(.*)\.(.*)\.(.*)\.(.*)\.(.*)'
+          match_type: regex
+          name: "metrics_executor_${4}_${5}"
+          labels:
+            application_id: "${2}"
+            application_name: "${1}"
+            executor_id: "${3}"
+
+gitea:
+  enabled: true
+  fullnameOverride: ilum-gitea
+  image:
+    rootless: false
+  initPreScript: "while ! nc -z ilum-postgresql-hl 5432 2>/dev/null; do echo 'Waiting for Postgres...'; sleep 5; done; echo 'Postgres is ready!'"
+  gitea:
+    config:
+      database:
+        DB_TYPE: postgres
+        HOST: "ilum-postgresql-hl:5432"
+        NAME: gitea
+        USER: ilum
+        PASSWD: "CHANGEMEPLEASE"
+    admin:
+      existingSecret: ilum-git-credentials
+      email: ilum@ilum
+      passwordMode: initialOnlyNoReset
+    additionalConfigFromEnvs:
+      - name: GITEA__REPOSITORY__ENABLE_PUSH_CREATE_USER
+        value: "true"
+      - name: GITEA__REPOSITORY__ENABLE_PUSH_CREATE_ORG
+        value: "true"
+      - name: GITEA__REPOSITORY__DEFAULT_BRANCH
+        value: "master"
+      - name: GITEA__SERVER__ROOT_URL
+        value: "http://git.example.com/external/gitea/"
+      - name: GITEA__SERVER__STATIC_URL_PREFIX
+        value: "/external/gitea/"
+  redis-cluster:
+    enabled: false
+  redis:
+    enabled: false
+  postgresql:
+    enabled: false
+  postgresql-ha:
+    enabled: false
+
+trino:
+  enabled: false
+  nameOverride: ilum-trino
+  coordinatorNameOverride: ilum-trino-coordinator
+  workerNameOverride: ilum-trino-worker
+  server:
+    workers: 1
+  catalogs:
+    ilum-delta: |
+      connector.name=delta_lake
+      delta.metastore.store-table-metadata=true
+      delta.register-table-procedure.enabled=true
+      hive.metastore.uri=thrift://ilum-hive-metastore:9083
+      fs.native-s3.enabled=true
+      s3.endpoint=http://ilum-minio:9000
+      s3.region=us-east-1
+      s3.path-style-access=true
+      s3.aws-access-key=minioadmin
+      s3.aws-secret-key=minioadmin
+
+ilum-n8n:
+  enabled: false
+n8n:
+  db:
+    type: postgresdb
+  externalPostgresql:
+    host: "ilum-postgresql-hl"
+    username: "ilum"
+    password: "CHANGEMEPLEASE"
+    database: "n8n"
+  main:
+    extraEnvVars:
+      N8N_PATH: "/external/n8n/"
+

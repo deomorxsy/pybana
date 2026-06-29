@@ -1,84 +1,45 @@
+# Custom values for airflow
+
+# Harbor Registry credentials
+registry:
+  secretName: regcred
+
+images:
+    airflow:
+      repository: d0-registry.acmeorg.io/airflow/airflow-custom_spark-qdrant
+      tag: latest
+    gitSync:
+      repository: registry.k8s.io/git-sync/git-sync
+      tag: v4.3.0
+      pullPolicy: IfNotPresent
+
 dags:
-  persistence:
+  gitSync:
     enabled: true
-    existingClaim: dags-volume
-    accessMode: ReadWriteOnce
-    storageClassName: openebs-hostpath-node2
+    repo: ssh://git@github.com:deomorxsy/pybana.git
+    branch: main
+    rev: HEAD
+    depth: 1
+    # the number of consecutive failures allowed before aborting
+    maxFailures: 0
+    subPath: "./dags/"
+    sshKeySecret: airflow-ssh-git-secret
+    # Github fingerprinting for known_hosts,
+    # it is public so no need to be a secret.
+    knownHosts: |
+      github.com ssh-rsa RSA_DAGS_GITSYNC_KNOWNHOSTS_VALUE
 
-#
-# Default airflow repository -- overridden by all the specific images below
-#- image: localhost:5000/airflow-custom-spark:1.0.0
-
-defaultAirflowRepository: airflow-custom-spark
-
-# Default airflow tag to deploy
-defaultAirflowTag: "1.0.0"
-
-gitSync:
-  enabled: true
-  repo: ssh://git@github.com/deomorxsy/pybana.git
-  branch: main
-  rev: HEAD
-  depth: 1
-  # the number of consecutive failures allowed before aborting
-  maxFailures: 0
-  subPath: "./dags/"
-  sshKeySecret: airflow-ssh-git-secret
-
-  # affinity:
-  #   nodeAffinity:
-  #     requiredDuringSchedulingIgnoredDuringExecution:
-  #       nodeSelectorTerms:
-  #         - matchExpressions:
-  #           - key: kubernetes.io/hostname
-  #             operator: In
-  #             values:
-  #               - ${NSC_VALUE}
+webserverSecretKey: "${{ secrets.AFW_WEBSERVER_SK }}"
 
 webserver:
-  affinity:
-    nodeAffinity:
-      requiredDuringSchedulingIgnoredDuringExecution:
-        nodeSelectorTerms:
-          - matchExpressions:
-            - key: kubernetes.io/hostname
-              operator: In
-              values:
-                - ${NSC_VALUE}
+  defaultUser:
+    enabled: true
+    username: "REP_WEBSERVER_USERNAME"
+    email: airflowadmin@example.com
+    firstName: Air
+    lastName: Flow
+    password: "REP_WEBSERVER_PASSWORD"
 
-                #scheduler:
-                #  affinity:
-                #    nodeAffinity:
-                #      requiredDuringSchedulingIgnoredDuringExecution:
-                #        nodeSelectorTerms:
-                #          - matchExpressions:
-                #            - key: kubernetes.io/hostname
-                #              operator: In
-                #              values:
-                #                - ${NSC_VALUE}
-                #
-                #workers:
-                #  affinity:
-                #    nodeAffinity:
-                #      requiredDuringSchedulingIgnoredDuringExecution:
-                #        nodeSelectorTerms:
-                #          - matchExpressions:
-                #            - key: kubernetes.io/hostname
-                #              operator: In
-                #              values:
-                #                - ${NSC_VALUE}
-                #
-                ## ArgoCD
-#createUserJob:
-#  useHelmHooks: false
-#  applyCustomEnv: false
-#
-#migrateDatabaseJob:
-#  useHelmHooks: false
-#  applyCustomEnv: false
-#  jobAnnotations:
-#    "argocd.argoproj.io/hook": Sync
-#
 logs:
   persistence:
     # Enable persistent volume for storing logs
@@ -91,4 +52,17 @@ logs:
     storageClassName: openebs-hostpath-node2
     ## the name of an existing PVC to use
     existingClaim: airflow-logs
+
+  # persistence:
+  #   enabled: true
+  #   existingClaim: dags-volume
+  #   accessMode: ReadWriteOnce
+  #   storageClassName: openebs-hostpath-node2
+
+#
+# Default airflow repository -- overridden by all the specific images below
+#- image: localhost:5000/airflow-custom-spark:1.0.0
+
+#defaultAirflowRepository: apache/airflow
+
 

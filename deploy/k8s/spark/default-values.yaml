@@ -1,0 +1,390 @@
+global:
+  logAggregation:
+    enabled: false
+    loki:
+      url: http://ilum-loki-gateway
+  lineage:
+    enabled: true
+  security:
+    oauth2:
+      audiences:
+      clientId:
+      clientSecret:
+      issuerUri:
+
+image: "ilum/core:6.3.2"
+pullPolicy: IfNotPresent
+imagePullSecrets: []
+javaOpts: ""
+
+nameOverride: ""
+fullnameOverride: ""
+replicaCount: 1
+
+resources:
+  limits:
+    memory: "2Gi"
+  requests:
+    memory: "1Gi"
+
+mongo:
+  uri: mongodb://ilum-mongo-mongodb:27017/ilum-default?replicaSet=rs0
+  statusProbe:
+    enabled: true
+    image: ilum/mongodb:6.0.5
+
+minio:
+  statusProbe:
+    enabled: true
+    baseUrl: "http://ilum-minio:9000"
+    image: curlimages/curl:8.5.0
+
+communication:
+  type: "grpc"
+
+kafka:
+  address: "kafka:9092"
+  requestSize: "20000000"
+  maxPollRecords: "1"
+  maxPollInterval: "60000"
+  statusProbe:
+    enabled: true
+    image: bitnami/kafka:3.4.1
+  ilum:
+    log: "false"
+
+grpc:
+  service:
+    type: "ClusterIP"
+    port: 9999
+    nodePort: ""
+    clusterIP: ""
+    loadBalancerIP: ""
+    annotations: { }
+  job:
+    host: "ilum-grpc"
+    port: 9999
+
+service:
+  type: "ClusterIP"
+  port: 9888
+  nodePort: ""
+  clusterIP: ""
+  loadBalancerIP: ""
+  annotations: { }
+
+ingress:
+  enabled: false
+  version: "v1"
+  className: ""
+  host: "host"
+  tls: []
+  path: /(.*)
+  pathType: Prefix
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/proxy-body-size: "600m"
+    nginx.org/client-max-body-size: "600m"
+
+livenessProbe:
+  failureThreshold: 3
+  httpGet:
+    path: /api/dev/reactive/health
+    port: http
+    scheme: HTTP
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 1
+
+readinessProbe:
+  failureThreshold: 3
+  httpGet:
+    path: /api/dev/reactive/health
+    port: http
+    scheme: HTTP
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 1
+
+kubernetes:
+  defaultCluster:
+    config:
+      spark.driver.extraJavaOptions: "-Divy.cache.dir=/tmp -Divy.home=/tmp"
+      spark.kubernetes.container.image: "ilum/spark:3.5.3-delta"
+      spark.databricks.delta.catalog.update.enabled: "true"
+      spark.sql.defaultSchema: "default"
+      spark.sql.extensions: "io.delta.sql.DeltaSparkSessionExtension"
+      spark.sql.catalog.spark_catalog: "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+  initClusterOnStartup: "true"
+  upgradeClusterOnStartup: "false"
+  api:
+    url: "https://kubernetes.default.svc"
+  container:
+    image: "ilum/spark:3.5.3-delta"
+  storage:
+    type: "s3"
+  s3:
+    host: "s3"
+    region: "us-east-1"
+    port: 7000
+    sparkBucket: ilum-files
+    dataBucket: ilum-tables
+    extraBuckets: []
+    accessKey: ""
+    secretKey: ""
+  gcs:
+    clientEmail: ""
+    sparkBucket: ilum-files
+    dataBucket: ilum-tables
+    extraBuckets: []
+    privateKey: ""
+    privateKeyId: ""
+  wasbs:
+    accountName: ""
+    accessKey: ""
+    sparkContainer: ilum-files
+    dataContainer: ilum-tables
+    extraContainers: []
+  hdfs:
+    hadoopUsername: "hdfs"
+    config: []
+    sparkCatalog: ilum-files
+    dataCatalog: ilum-tables
+    extraCatalogs: []
+    keyTab: ""
+    principal: ""
+    krb5: ""
+    trustStore: ""
+    logDirectory: ""
+
+security:
+  type: "internal"
+  secret:
+    name: "ilum-security"
+  activities:
+    timeToLive: 604800
+  internal:
+    users:
+      - username: "admin"
+        initialPassword: "admin"
+        roles:
+          - "ADMIN"
+      - username: "r4ms0s"
+        initialPassword: "idkidkidk123435"
+        roles:
+          - "USER"
+  ldap:
+    urls: []
+    base: ""
+    username: ""
+    password: ""
+    passwordEncoder: "adaptive"
+    adminUsers:
+      - "admin"
+    userMapping:
+      base: ""
+      filter: "uid={0}"
+      password: "userPassword"
+      username: "uid"
+    groupMapping:
+      base: ""
+      filter: "(member={0})"
+      memberAttribute: "uid"
+      name: "cn"
+  oauth2:
+    audiences:
+    clientId: ""
+    clientSecret: ""
+    issuerUri: ""
+    mapping:
+      id: ""
+      name: "sub"
+      email: "email"
+      fullname: "fullname"
+      description: ""
+      department: ""
+      groups: "groups"
+      roles: "roles"
+      singleGroup: ""
+      singleRole: ""
+      enabled: ""
+      enabledTrue: ""
+  jwt:
+    issuerUri: "https://ilum.cloud"
+    timeToLive: "8h"
+    publicKey: ""
+    privateKey: ""
+  authorities:
+    roles:
+      prefix: "ROLE_"
+      claimName: "groups"
+      # mappings:
+      #   administrators: admin
+      #   managers: user
+    scopes:
+      prefix: "SCOPE_"
+      claimName: "scp"
+      # mappings:
+  trustStore:
+    enabled: false
+    secretName: "tls-secret"
+    caSecretFileName: "ca.crt"
+    password: "CHANGEMEPLEASE"
+    image: "ilum/java:17.0.13_11-jre"
+  keyStore:
+    enabled: false
+    secretName: "tls-secret"
+    secretFileName: "keystore.p12"
+    password: "CHANGEMEPLEASE"
+
+license:
+  privateKey: ""
+
+logging:
+  level: "info"
+
+externalSparkSubmit:
+  enabled: false
+  image: ilum/spark-launcher:spark-3.5.3
+  resources:
+    limits:
+      memory: "500Mi"
+    requests:
+      memory: "300Mi"
+
+cronjob:
+  image: curlimages/curl:8.5.0
+  backoffLimit: 3
+
+job:
+  retain:
+    hours: 168
+  openLineage:
+    transport:
+      type: http
+      serverUrl:  http://ilum-marquez:9555
+      endpoint:  /external/lineage/api/v1/lineage
+  prometheus:
+    enabled: true
+  graphite:
+    enabled: false
+    host: "ilum-graphite-graphite-tcp"
+    port: 9109
+    period: 10
+    unit: seconds
+  healthcheck:
+    enabled: true
+    interval: 300
+    tolerance: 120
+  autoPause:
+    enabled: true
+    idleTime: 3600
+    period: 180
+  memorysettings:
+    executors: 2
+    executorMemory: 1g
+    driverMemory: 1g
+    executorCores: 1
+    driverCores: 1
+    dynamicAllocationEnabled: false
+    minExecutors: 0
+    initialExecutors: 0
+    maxExecutors: 20
+
+hiveMetastore:
+  enabled: false
+  address: thrift://ilum-hive-metastore:9083
+  version: 3.1.3
+  warehouseDir: s3a://ilum-data/
+  statusProbe:
+    enabled: false
+    image: curlimages/curl:8.5.0
+    host: ilum-hive-metastore
+    port: 9083
+
+cors:
+  enabled: "true"
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/arch
+          operator: In
+          values:
+          - amd64
+          - arm64
+
+historyServer:
+  enabled: true
+  image: "ilum/spark-launcher:spark-3.5.3"
+  address: "http://ilum-history-server:9666"
+  pullPolicy: IfNotPresent
+  imagePullSecrets: []
+
+  parameters:
+    spark.history.fs.cleaner.enabled: true
+    spark.history.fs.cleaner.interval: 1d
+    spark.history.fs.cleaner.maxAge: 7d
+
+  resources:
+    limits:
+      memory: "500Mi"
+    requests:
+      memory: "300Mi"
+
+  service:
+    type: "ClusterIP"
+    port: 9666
+    nodePort: ""
+    clusterIP: ""
+    loadBalancerIP: ""
+    annotations: { }
+
+  ingress:
+    enabled: false
+    version: "v1"
+    className: ""
+    host: "host"
+    tls: []
+    path: /(.*)
+    pathType: Prefix
+    annotations:
+      nginx.ingress.kubernetes.io/rewrite-target: /$1
+      nginx.ingress.kubernetes.io/proxy-body-size: "600m"
+      nginx.org/client-max-body-size: "600m"
+
+  statusProbe:
+    enabled: true
+    image: curlimages/curl:8.5.0
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity:
+    nodeAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+        nodeSelectorTerms:
+        - matchExpressions:
+          - key: kubernetes.io/arch
+            operator: In
+            values:
+            - amd64
+            - arm64
+
+sql:
+  enabled: false
+  host: "ilum-sql-headless"
+  port: "10099"
+
+clusterDeleteJob:
+  image: curlimages/curl:8.5.0
+

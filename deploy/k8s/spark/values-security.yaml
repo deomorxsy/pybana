@@ -1,0 +1,9 @@
+security:
+    type: "internal"
+    internal:
+      users:
+        - username: "base"
+          initialPassword: "base_initial_password"
+          roles:
+            - "ADMIN"
+

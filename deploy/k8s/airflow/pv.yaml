@@ -5,12 +5,13 @@ metadata:
   labels:
     app: airflow-logs
 spec:
-  storageClassName: manual
-
+  storageClassName: openebs-hostpath-node2
   capacity:
-    storage: 20Gi
+    storage: 1Gi
+    # storage: 20Gi
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
   claimRef:
     apiVersion: v1
     kind: PersistentVolumeClaim
@@ -18,3 +19,18 @@ spec:
     namespace: airflow
   hostPath:
     path: /tmp/data/
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-logs
+  namespace: airflow
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: openebs-hostpath-node2
+  volumeName: airflow-logs      # Must match PV name if statically binding
+

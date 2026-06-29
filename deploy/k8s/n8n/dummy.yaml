@@ -1,25 +1,26 @@
+---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  name: airflow-ui-ingress
-  namespace: airflow
+  name: n8n-ui-ingress
+  namespace: n8n-msg
   annotations:
     cert-manager.io/cluster-issuer: letsencrypt-prod
-    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
 spec:
   ingressClassName: nginx
   tls:
   - hosts:
-    - d0-airflow.acmeorg.io
-    secretName: airflow-ui-tls
+    - n8n-2.acmeorg.io
+    secretName: n8n-core-tls
   rules:
-  - host: d0-airflow.acmeorg.io
+  - host: n8n-2.acmeorg.io
     http:
       paths:
       - path: /
         pathType: Prefix
         backend:
           service:
-            name: airflow-api-server
+            name: n8n
             port:
-              number: 8080
+              number: 80

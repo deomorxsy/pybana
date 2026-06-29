@@ -1,0 +1,39 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: keycloak
+
+resources:
+    - namespace.yaml
+    - secrets.yaml
+
+helmCharts:
+- name: keycloak
+  releaseName: keycloak
+  namespace: keycloak
+  repo: https://github.com/bitnami/charts
+  version: 24.3.0
+  valuesInline:
+    production: true
+    proxy: edge
+
+    auth:
+      adminUser: "4dm1n"
+      existingSecret: keycloak-admin-password
+      passwordSecretKey: "81743r7e8fvw@@#F@&7_"
+
+    ingress:
+      enabled: true
+      hostname: "keycloak"
+      path: /
+      tls: true
+
+    postgresql:
+      enabled: true
+      auth:
+        existingSecret: keycloak-db-credentials
+      primary:
+        persistence:
+          enabled: true
+          existingClaim: keycloak-postgresql
+
+
