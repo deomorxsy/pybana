@@ -199,5 +199,5 @@ deploy/workflows/afw-dags/wrapper/*
 *.png
 
 # secrets
-./secrets-posix.sh
+secrets-posix.sh
 
